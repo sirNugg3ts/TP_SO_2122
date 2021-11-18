@@ -1,16 +1,14 @@
-#ifndef MEDICO
-#define MEDICO
+#ifndef MEDICO_H
+#define MEDICO_H
 
-#define MAXMEDICOS 10
-#define MAXESPECIALIDADE 2
-#define STILLALIVE 20
+#define MAX_NAME_SIZE 50
+#define HEARTBEAT 20
 
-typedef struct MEDICO{
+typedef struct especialista{
+    char nomeMedico[MAX_NAME_SIZE];
+    char especialidade[MAX_NAME_SIZE];
 
-    char nomeMedico[50];
-    char especialidade[50];
-
-} MEDICO,*pMEDICO;
+}Especialista, *pEspecialista;
 
 
 #endif
