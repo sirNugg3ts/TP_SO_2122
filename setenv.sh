@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-echo "MAXCLIENTS 20"
-export MAXCLIENTS=20
+echo "MAXCLIENTES 20"
+export MAXCLIENTES=20
 echo "MAXMEDICOS 10"
 export MAXMEDICOS=10
