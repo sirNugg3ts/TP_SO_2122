@@ -5,8 +5,6 @@
 #define MAXUTENTESESPECIALIDADE 5
 #define ESPECIALIDADES 5
 
-#include "cliente.h"
-
 
 struct Balcao{
     int N; //valor maximo de clientes EM SIMULTANEO

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "balcao.h"
+#include "utils.h"
 
 void apresentaMenu() {
     printf("\n");
@@ -25,7 +26,7 @@ int obtemVariaveisAmbiente(struct Balcao *balcao) {
             balcao->N = atoi(env);
         }
     } else {
-        fprintf(stderr, "\nErro - qqq A variavel de ambiente necessaria MAXClIENTES nao se encontra definida");
+        fprintf(stderr, "\nErro - A variavel de ambiente necessaria MAXClIENTES nao se encontra definida");
         return -1;
     }
 
@@ -66,7 +67,7 @@ void inicializaStruct(struct Balcao *balcao) {
 int main(int argc, char *argv[]) {
 
     struct Balcao balcao; //estrutura que guarda a informação necessária ao balcão
-    char comando[10];
+    char comando[MAX_STRING_SIZE];
 
     //inicialização
     if (obtemVariaveisAmbiente(&balcao) == -1)
@@ -108,15 +109,15 @@ int main(int argc, char *argv[]) {
         }
         default: {//parent
 
-            char input[100];
-            char output[100];
+            char input[MAX_STRING_SIZE];
+            char output[MAX_STRING_SIZE];
 
             close(fd_balcao_classificador[0]);
             close(fd_classificador_balcao[1]);
 
             while (1) {
                 printf("\nIndique os sintomas: ");
-                fgets(input, 99, stdin);
+                fgets(input, MAX_STRING_SIZE-1, stdin);
 
                 write(fd_balcao_classificador[1], input, strlen(input));
                 read(fd_classificador_balcao[0], output, 99);
@@ -128,8 +129,8 @@ int main(int argc, char *argv[]) {
                 //just cleaning memory
                 fflush(stdout);
                 fflush(stdin);
-                memset(output, 0, 99);
-                memset(input, 0, 99);
+                memset(output, 0, MAX_STRING_SIZE-1);
+                memset(input, 0, MAX_STRING_SIZE-1);
             }
             break;
         }
@@ -139,7 +140,7 @@ int main(int argc, char *argv[]) {
         //TODO: VERIFICAÇÕES
         //TODO: implementar todos os comandos
         printf("Insira o comando: ");
-        fgets(comando, 9, stdin);
+        fgets(comando, MAX_STRING_SIZE-1, stdin);
         comando[strcspn(comando, "\n")] = 0;
         if (strcmp(comando, "help") == 0) {
             apresentaMenu();
