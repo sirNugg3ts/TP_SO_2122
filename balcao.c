@@ -55,19 +55,19 @@ int obtemVariaveisAmbiente(struct Balcao *balcao) {
 }
 
 void inicializaStruct(struct Balcao *balcao) {
-    //TODO
     balcao->nClienteLigados = 0;
     balcao->nMedicosLigados = 0;
     for (int i = 0; i < 5; ++i)
         balcao->filaDeEspera[i]=0;
-
 }
-
 
 int main(int argc, char *argv[]) {
 
     struct Balcao balcao; //estrutura que guarda a informação necessária ao balcão
     char comando[MAX_STRING_SIZE];
+
+    fflush(stdout);
+    fflush(stdin);
 
     //inicialização
     if (obtemVariaveisAmbiente(&balcao) == -1)
@@ -103,7 +103,10 @@ int main(int argc, char *argv[]) {
             close(fd_classificador_balcao[1]);
             close(fd_classificador_balcao[0]);
 
-            execl("classificador", "classificador", NULL);
+            if(execl("classificador", "classificador", NULL) == -1){
+                fprintf(stderr,"\nNao foi possivel iniciar o classificador");
+                exit(1);
+            }
             break;
 
         }
@@ -126,7 +129,7 @@ int main(int argc, char *argv[]) {
                 if (strcmp(input, "#fim\n") == 0)
                     break;
 
-                //just cleaning memory
+                //Cleaning memory
                 fflush(stdout);
                 fflush(stdin);
                 memset(output, 0, MAX_STRING_SIZE-1);
@@ -149,5 +152,3 @@ int main(int argc, char *argv[]) {
         }
     }
 }
-
-
