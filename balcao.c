@@ -63,10 +63,28 @@ int main(int argc, char *argv[]) {
     char comando[MAX_STRING_SIZE];
     pid_t forkPID;
 
-
-
     fflush(stdout);
     fflush(stdin);
+
+     //iniciar pipe balcao
+    if (mkfifo(SERVER_FIFO,0666) == -1)
+    {
+        if (errno == EEXIST)
+        {
+            fprintf(stderr,"\nO pipe ja existe -> MEDICALso_server ");
+            exit(1); //TODO -> exit gracefully
+        }
+        fprintf(stderr,"\nErro ao criar pipe -> MEDICALso_server");
+        exit(1); //TODO -> exit gracefully
+    }
+
+    //FD servidor
+    int fdServer = open(SERVER_FIFO,O_RDONLY);
+    if (fdServer == -1)
+    {
+        fprintf(stderr,"\nErro ao abrir FIFO -> MEDICALso_server");
+        exit(1); //TODO -> exit gracefully
+    }
 
     //inicialização
     if (obtemVariaveisAmbiente(&balcao) == -1)
@@ -139,8 +157,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    //iniciar pipe balcao
+   
 
+
+    
+    
 
 
     while (1) {

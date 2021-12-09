@@ -18,10 +18,14 @@ int main(int argc, char*argv[]){
 
     Utente u1;
     char sintomas[100];
+    int fdServer;
 
     if(inicializaEstrutura(argc,argv,&u1)==-1){
         return -1;
     }
+
+    //verificar se o balcao esta a correr
+    fdServer = open()
 
     //TODO: Verificar se o balcao esta cheio ou nao
 
@@ -30,6 +34,7 @@ int main(int argc, char*argv[]){
     fgets(sintomas,99,stdin);
 
     //TODO: enviar informação para o balcão - namedpipe
+    fdServer = open()
 
 return 0;
 }
