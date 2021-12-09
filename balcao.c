@@ -1,7 +1,3 @@
-#include "stdio.h"
-#include "string.h"
-#include <stdlib.h>
-#include <unistd.h>
 #include "balcao.h"
 #include "utils.h"
 
@@ -65,6 +61,9 @@ int main(int argc, char *argv[]) {
 
     struct Balcao balcao; //estrutura que guarda a informação necessária ao balcão
     char comando[MAX_STRING_SIZE];
+    pid_t forkPID;
+
+
 
     fflush(stdout);
     fflush(stdin);
@@ -79,12 +78,12 @@ int main(int argc, char *argv[]) {
     int fd_balcao_classificador[2], fd_classificador_balcao[2];
 
     if (pipe(fd_balcao_classificador) == -1 || pipe(fd_classificador_balcao) == -1) {
-        fprintf(stderr, "\nErro - Nao foi possivel criar pipes\n");
+        fprintf(stderr, "\nErro - Nao foi possivel criar pipes para o classificador\n");
         exit(1);
     }
 
     //Run Classificador
-    switch (fork()) {
+    switch (forkPID = fork()) {
         case -1: //error fork
             fprintf(stderr, "\nErro - Nao foi possivel criar fork\n");
             exit(2);
@@ -107,6 +106,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr,"\nNao foi possivel iniciar o classificador");
                 exit(1);
             }
+            fprintf(stderr,"\nErro ao correr classificador");
             break;
 
         }
@@ -138,6 +138,10 @@ int main(int argc, char *argv[]) {
             break;
         }
     }
+
+    //iniciar pipe balcao
+
+
 
     while (1) {
         //TODO: VERIFICAÇÕES
