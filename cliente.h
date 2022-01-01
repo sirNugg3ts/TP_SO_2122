@@ -4,7 +4,9 @@
 #include "utils.h"
 
 typedef struct utente{
+    pid_t pid;
     char nomeUtente[MAX_STRING_SIZE];
+    char sintomas[MAX_STRING_SIZE];
     char especialidadeAtribuida[MAX_STRING_SIZE];
     int prioridadeAtribuida;
     int desistiu; // morreu ou desistiu do tratamento

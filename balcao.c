@@ -1,5 +1,6 @@
 #include "balcao.h"
 #include "utils.h"
+#include "cliente.h"
 
 void apresentaMenu() {
     printf("\n");
@@ -57,17 +58,18 @@ void inicializaStruct(struct Balcao *balcao) {
         balcao->filaDeEspera[i]=0;
 }
 
+
 int main(int argc, char *argv[]) {
 
     struct Balcao balcao; //estrutura que guarda a informação necessária ao balcão
     char comando[MAX_STRING_SIZE];
-    pid_t forkPID;
+    int fdServer,fd_balcao_classificador[2], fd_classificador_balcao[2];
 
     fflush(stdout);
     fflush(stdin);
 
      //iniciar pipe balcao
-    if (mkfifo(SERVER_FIFO,0666) == -1)
+    if (mkfifo(SERVER_FIFO,0777) == -1)
     {
         if (errno == EEXIST)
         {
@@ -79,7 +81,7 @@ int main(int argc, char *argv[]) {
     }
 
     //FD servidor
-    int fdServer = open(SERVER_FIFO,O_RDONLY);
+    fdServer = open(SERVER_FIFO,O_RDONLY);
     if (fdServer == -1)
     {
         fprintf(stderr,"\nErro ao abrir FIFO -> MEDICALso_server");
@@ -93,15 +95,14 @@ int main(int argc, char *argv[]) {
 
 
     //File Descriptors para comunicação com o Classificador
-    int fd_balcao_classificador[2], fd_classificador_balcao[2];
 
     if (pipe(fd_balcao_classificador) == -1 || pipe(fd_classificador_balcao) == -1) {
         fprintf(stderr, "\nErro - Nao foi possivel criar pipes para o classificador\n");
-        exit(1);
+        exit(1); //TODO -> exit gracefully
     }
 
     //Run Classificador
-    switch (forkPID = fork()) {
+    switch (fork()) {
         case -1: //error fork
             fprintf(stderr, "\nErro - Nao foi possivel criar fork\n");
             exit(2);
@@ -130,41 +131,41 @@ int main(int argc, char *argv[]) {
         }
         default: {//parent
 
-            char input[MAX_STRING_SIZE];
-            char output[MAX_STRING_SIZE];
-
             close(fd_balcao_classificador[0]);
             close(fd_classificador_balcao[1]);
 
-            while (1) {
-                printf("\nIndique os sintomas: ");
-                fgets(input, MAX_STRING_SIZE-1, stdin);
+           //read pipe
+           Utente u1;
+           int size = read(fdServer,&u1,sizeof(u1));
+           if(size>0){
+               //recebeu com sucesso
+               write(fd_balcao_classificador[1], u1.sintomas, strlen(u1.sintomas));
+               read(fd_classificador_balcao[0], u1.especialidadeAtribuida, sizeof(u1.especialidadeAtribuida));
+               char CLIENT_FIFO_FINAL[MAX_STRING_SIZE];
+               sprintf(CLIENT_FIFO_FINAL,CLIENT_FIFO,u1.pid);
 
-                write(fd_balcao_classificador[1], input, strlen(input));
-                read(fd_classificador_balcao[0], output, 99);
-                fprintf(stdout, "%s", output);
-
-                if (strcmp(input, "#fim\n") == 0)
-                    break;
-
-                //Cleaning memory
-                fflush(stdout);
-                fflush(stdin);
-                memset(output, 0, MAX_STRING_SIZE-1);
-                memset(input, 0, MAX_STRING_SIZE-1);
-            }
+               //split
+               char *token;
+               token = strtok(u1.especialidadeAtribuida," "); // neurologia
+               strcpy(u1.especialidadeAtribuida,token);
+               while( token != NULL ) {
+                   printf( " %s\n", token );
+                   token = strtok(NULL, "\0");
+               }
+               u1.prioridadeAtribuida=atoi(u1.especialidadeAtribuida);
+               //
+               int fdResposta = open(CLIENT_FIFO_FINAL,O_WRONLY);
+               int size2 = write(fdResposta,&u1,sizeof(u1));
+               close(fdResposta);
+           }
             break;
         }
     }
 
-   
+    unlink(SERVER_FIFO);
 
 
-    
-    
-
-
-    while (1) {
+    /*while (1) {
         //TODO: VERIFICAÇÕES
         //TODO: implementar todos os comandos
         printf("Insira o comando: ");
@@ -175,5 +176,5 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(comando, "encerra") == 0) {
             break;
         }
-    }
+    }*/
 }
