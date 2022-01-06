@@ -16,7 +16,7 @@ int main(){
 
     struct sigaction heartbeat_signal;
 
-    heartbeat_signal.sa_handler = heartbeat;
+    //heartbeat_signal.sa_handler = heartbeat;
     heartbeat_signal.sa_flags = SA_RESTART|SA_SIGINFO;
 
     //SA_RESTART - para retomar scanf
