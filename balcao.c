@@ -74,10 +74,10 @@ int main(int argc, char *argv[]) {
         if (errno == EEXIST)
         {
             fprintf(stderr,"\nO pipe ja existe -> MEDICALso_server ");
-            exit(1); //TODO -> exit gracefully
+            exit(1);
         }
         fprintf(stderr,"\nErro ao criar pipe -> MEDICALso_server");
-        exit(1); //TODO -> exit gracefully
+        exit(1);
     }
 
     //FD servidor
@@ -85,12 +85,15 @@ int main(int argc, char *argv[]) {
     if (fdServer == -1)
     {
         fprintf(stderr,"\nErro ao abrir FIFO -> MEDICALso_server");
-        exit(1); //TODO -> exit gracefully
+        unlink(SERVER_FIFO);
+        exit(2);
     }
 
     //inicialização
-    if (obtemVariaveisAmbiente(&balcao) == -1)
-        return -1;
+    if (obtemVariaveisAmbiente(&balcao) == -1){
+        unlink(SERVER_FIFO);
+        exit(3);
+    }
     inicializaStruct(&balcao);
 
 
@@ -98,15 +101,21 @@ int main(int argc, char *argv[]) {
 
     if (pipe(fd_balcao_classificador) == -1 || pipe(fd_classificador_balcao) == -1) {
         fprintf(stderr, "\nErro - Nao foi possivel criar pipes para o classificador\n");
-        exit(1); //TODO -> exit gracefully
+        unlink(SERVER_FIFO);
+        exit(4);
     }
 
     //Run Classificador
     switch (fork()) {
         case -1: //error fork
             fprintf(stderr, "\nErro - Nao foi possivel criar fork\n");
-            exit(2);
-            break;
+
+            //clean pipes
+            unlink(SERVER_FIFO);
+            close(fd_balcao_classificador);
+            close(fd_classificador_balcao);
+
+            exit(5);
         case 0: { // child - run classificador
 
             // write 1 -> 0 read
@@ -123,46 +132,96 @@ int main(int argc, char *argv[]) {
 
             if(execl("classificador", "classificador", NULL) == -1){
                 fprintf(stderr,"\nNao foi possivel iniciar o classificador");
-                exit(1);
+                //clean pipes
+                unlink(SERVER_FIFO);
+                close(fd_balcao_classificador);
+                close(fd_classificador_balcao);
+                exit(6);
             }
             fprintf(stderr,"\nErro ao correr classificador");
-            break;
-
+            //clean pipes
+            unlink(SERVER_FIFO);
+            close(fd_balcao_classificador);
+            close(fd_classificador_balcao);
+            exit(7);
         }
         default: {//parent
 
             close(fd_balcao_classificador[0]);
             close(fd_classificador_balcao[1]);
 
-           //read pipe
-           Utente u1;
-           int size = read(fdServer,&u1,sizeof(u1));
-           if(size>0){
-               //recebeu com sucesso
-               write(fd_balcao_classificador[1], u1.sintomas, strlen(u1.sintomas));
-               read(fd_classificador_balcao[0], u1.especialidadeAtribuida, sizeof(u1.especialidadeAtribuida));
-               char CLIENT_FIFO_FINAL[MAX_STRING_SIZE];
-               sprintf(CLIENT_FIFO_FINAL,CLIENT_FIFO,u1.pid);
+            struct timeval tv;
+            int loopFD;
+            fd_set read_fds;
 
-               //split
-               char *token;
-               token = strtok(u1.especialidadeAtribuida," "); // neurologia
-               strcpy(u1.especialidadeAtribuida,token);
-               while( token != NULL ) {
-                   printf( " %s\n", token );
-                   token = strtok(NULL, "\0");
-               }
-               u1.prioridadeAtribuida=atoi(u1.especialidadeAtribuida);
-               //
-               int fdResposta = open(CLIENT_FIFO_FINAL,O_WRONLY);
-               int size2 = write(fdResposta,&u1,sizeof(u1));
-               close(fdResposta);
+            do{
+
+                tv.tv_sec = 2;
+                tv.tv_usec = 0;
+
+                FD_ZERO(&read_fds);
+                FD_SET(0,&read_fds); //keyboard input
+                FD_SET(fdServer, &read_fds); //receber pedidos de utentes
+
+                loopFD = select(fdServer+1,&read_fds,NULL,NULL,&tv);
+
+                if(FD_ISSET(0,&read_fds)){
+                    //TODO: Processar comando teclado
+
+                    fgets(comando, MAX_STRING_SIZE-1, stdin);
+                    comando[strcspn(comando, "\n")] = 0;
+                    if (strcmp(comando, "help") == 0) {
+                        apresentaMenu();
+                    } else if (strcmp(comando, "encerra") == 0) {
+                        //TODO: exit gracefully
+                        break;
+                    }
+
+                }
+                if(FD_ISSET(fdServer,&read_fds)) {
+
+                    //TODO: processamento de vários utentes, de momento apenas lê um
+
+
+
+                    //read pipe
+                    Utente u1;
+                    int size = read(fdServer, &u1, sizeof(u1));
+                    if (size > 0) {
+                        //recebeu com sucesso
+                        write(fd_balcao_classificador[1], u1.sintomas, strlen(u1.sintomas));
+                        read(fd_classificador_balcao[0], u1.especialidadeAtribuida, sizeof(u1.especialidadeAtribuida));
+                        char CLIENT_FIFO_FINAL[MAX_STRING_SIZE];
+                        sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
+
+                        //split
+                        char *token;
+                        token = strtok(u1.especialidadeAtribuida, " "); // neurologia
+                        strcpy(u1.especialidadeAtribuida, token);
+                        while (token != NULL) {
+                            printf(" %s\n", token);
+                            token = strtok(NULL, "\0");
+                        }
+                        u1.prioridadeAtribuida = atoi(u1.especialidadeAtribuida);
+
+                        int fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
+                        int size2 = write(fdResposta, &u1, sizeof(u1));
+                        close(fdResposta);
+                    }
+                }
+
+
+            }while(1);
+
+           
            }
             break;
         }
     }
 
-    unlink(SERVER_FIFO);
+
+
+
 
 
     /*while (1) {

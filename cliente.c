@@ -24,6 +24,7 @@ int inicializaEstrutura(int argc, char* argv[],pUtente utente){
 }
 
 int main(int argc, char*argv[]){
+    //TODO: cleaning pipes and stuff
 
     Utente u1;
     int fdServer, fdCliente;
@@ -65,6 +66,26 @@ int main(int argc, char*argv[]){
     if(fdServer==-1) {
         printf("\nErro ao abrir o NamedPipe do Balcao\n");
         exit(1);
+    }
+
+    MSG msg;
+    msg.sender = getpid();
+    strcpy(msg.msg,"REQUEST isBalcaoFull");
+
+    int size1 = write(fdServer,&msg,sizeof(msg));
+
+    if(size1<1){
+        fprintf(stderr,"\nErro ao pedir informacao ao servidor");
+        exit(1);
+    }else{
+        fdCliente = open(CLIENT_FIFO_FINAL,O_RDONLY);
+        MSG response;
+        int sizeResponse = read(fdCliente,&response,sizeof(response));
+        if(strcmp(response.msg,"false")){
+            fprintf(stderr,"\nO Balcao encontra-se cheio, a abortar");
+            exit(1);
+
+        }
     }
 
 
