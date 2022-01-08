@@ -71,42 +71,55 @@ void *recebeUtentes(void *Dados) {
     //TODO: processamento de vários utentes, de momento apenas lê um
     //TODO: Verificar se o balcao ta cheio
 
+    fprintf(stdout,"\nWaiting for new clients...");
+    fflush(stdout);
+
     while (dadosRegUtentes->stopReceiving) {
         //read pipe
         Utente u1;
         int size = read(dadosRegUtentes->fdServer, &u1, sizeof(u1));
         if (size > 0) {
             printf("\nNovo Utente");
+            fflush(stdout);
             char CLIENT_FIFO_FINAL[MAX_STRING_SIZE];
+            char bufferClassificador[MAX_STRING_SIZE];
             char *token;
+
+            printf("\nSintomas recebidos: %s",u1.sintomas);
 
             //recebeu com sucesso
             write(dadosRegUtentes->fd_balcao_classificador[1], u1.sintomas, strlen(u1.sintomas));
-            read(dadosRegUtentes->fd_classificador_balcao[0], u1.especialidadeAtribuida,
-                 sizeof(u1.especialidadeAtribuida));
+
+            int size1 = read(dadosRegUtentes->fd_classificador_balcao[0],bufferClassificador,sizeof(bufferClassificador));
+            printf("\nInput classificador: %s",bufferClassificador);
+
+            //int size1= read(dadosRegUtentes->fd_classificador_balcao[0], u1.especialidadeAtribuida,sizeof(u1.especialidadeAtribuida));
+            bufferClassificador[size1] = '\0';
             sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
 
             //split
 
-            token = strtok(u1.especialidadeAtribuida, " "); //
+            token = strtok(bufferClassificador, " "); //
             strcpy(u1.especialidadeAtribuida, token);
 
             while (token != NULL) {
-                printf(" %s\n", token); //debug
+                u1.prioridadeAtribuida = atoi(token);
+               // printf(" %s\n", token); //debug
+                //fflush(stdout);
                 token = strtok(NULL, "\0");
             }
 
-            u1.prioridadeAtribuida = atoi(u1.especialidadeAtribuida);
-
             int fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
-            int size2 = write(fdResposta, &u1, sizeof(u1));
+            write(fdResposta, &u1, sizeof(u1));
             close(fdResposta);
         }
     }
+    pthread_exit(NULL);
 }
 
 
 int main(int argc, char *argv[]) {
+
     //TODO: 1 - Correctly clean all pipes
 
     struct Balcao balcao; //estrutura que guarda a informação necessária ao balcão
@@ -127,9 +140,10 @@ int main(int argc, char *argv[]) {
     }
 
     //FD servidor
-    fdServer = open(SERVER_FIFO, O_RDONLY);
+    fdServer = open(SERVER_FIFO, O_RDONLY | O_NONBLOCK);
     if (fdServer == -1) {
         fprintf(stderr, "\nErro ao abrir FIFO -> MEDICALso_server");
+        fflush(stderr);
         unlink(SERVER_FIFO);
         exit(2);
     }
@@ -146,21 +160,30 @@ int main(int argc, char *argv[]) {
 
     if (pipe(fd_balcao_classificador) == -1 || pipe(fd_classificador_balcao) == -1) {
         fprintf(stderr, "\nErro - Nao foi possivel criar pipes para o classificador\n");
+        fflush(stderr);
+
         unlink(SERVER_FIFO);
         exit(4);
     }
+
+    printf("\nforking");
+    fflush(stdout);
 
     //Run Classificador
     switch (fork()) {
         case -1:{
             //error fork
             fprintf(stderr, "\nErro - Nao foi possivel criar fork\n");
+            fflush(stderr);
 
             //clean pipes
             unlink(SERVER_FIFO);
             exit(5);
         }
         case 0: { // child - run classificador
+
+            fprintf(stdout,"\nVou iniciar o classificador");
+            fflush(stdout);
 
             // write 1 -> 0 read
             close(STDIN_FILENO);
@@ -174,13 +197,16 @@ int main(int argc, char *argv[]) {
             close(fd_classificador_balcao[1]);
             close(fd_classificador_balcao[0]);
 
+
             if (execl("classificador", "classificador", NULL) == -1) {
                 fprintf(stderr, "\nNao foi possivel iniciar o classificador");
+                fflush(stderr);
                 //clean pipes
                 unlink(SERVER_FIFO);
                 exit(6);
             }
             fprintf(stderr, "\nErro ao correr classificador");
+            fflush(stderr);
             //clean pipes
             unlink(SERVER_FIFO);
             exit(7);
@@ -197,18 +223,27 @@ int main(int argc, char *argv[]) {
             dados.fd_balcao_classificador = fd_balcao_classificador;
             dados.stopReceiving = 1;
 
+            printf("\nVou iniciar a thread");
+            fflush(stdout);
+
             if (pthread_create(&threadRecebeUtentes, NULL, &recebeUtentes, &dados) != 0) {
                 fprintf(stderr, "\nErro ao criar thread para receber utentes\nA terminar...");
                 exit(1);
             }
 
+            printf("\nThread Iniciada");
+            fflush(stdout);
+
             //input teclado
+            fprintf(stdout,"\nWrite \"Help\" for a list of commands");
+            fflush(stdout);
             do {
                 fgets(comando, MAX_STRING_SIZE - 1, stdin);
                 comando[strcspn(comando, "\n")] = 0;
                 //TODO: Inserir o resto dos comandos
                 if (strcmp(comando, "help") == 0) {
                     apresentaMenu();
+                    fflush(stdout);
                 } else if (strcmp(comando, "encerra") == 0) {
                     dados.stopReceiving = 0; // parar de aceitar utentes
                     //TODO: Notificar que o balcao vai encerrar

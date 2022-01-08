@@ -1,4 +1,4 @@
-all: balcao cliente medico
+all: clean balcao cliente medico
 
 balcao: balcao.c balcao.h
 	gcc -o balcao balcao.c -pthread
