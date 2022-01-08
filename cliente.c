@@ -67,7 +67,7 @@ int main(int argc, char*argv[]){
         printf("\nErro ao abrir o NamedPipe do Balcao\n");
         exit(1);
     }
-
+/*
     MSG msg;
     msg.sender = getpid();
     strcpy(msg.msg,"REQUEST isBalcaoFull");
@@ -88,7 +88,7 @@ int main(int argc, char*argv[]){
         }
     }
 
-
+*/
     int size = write(fdServer,&u1,sizeof(u1));
     if(size<0){
         printf("\nErro ao escrever a estrutura para o pipe \n");
@@ -102,6 +102,7 @@ int main(int argc, char*argv[]){
         printf("\nErro ao ler a estrutura para o pipe \n");
     }
     fprintf(stdout,"\nAtribuido : %s",u1.especialidadeAtribuida);
+    fprintf(stdout,"\nPrioridade: %d\n",u1.prioridadeAtribuida);
 
     close(fdServer);
     unlink(CLIENT_FIFO_FINAL);
