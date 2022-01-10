@@ -101,6 +101,14 @@ int main(int argc, char*argv[]){
     if(size2<0){
         printf("\nErro ao ler a estrutura para o pipe \n");
     }
+    if(strcmp(u1.nomeUtente,"SERVERFULL")==0){
+        fprintf(stdout,"O servidor esta cheio");
+        exit(0);
+    }
+    if(strcmp(u1.nomeUtente,"ESPECIALIDADEFULL")==0){
+        fprintf(stdout,"Foi lhe atribuido a especialidade %s, mas esta ja se encontra cheia",u1.especialidadeAtribuida);
+        exit(0);
+    }
     fprintf(stdout,"\nAtribuido : %s",u1.especialidadeAtribuida);
     fprintf(stdout,"\nPrioridade: %d\n",u1.prioridadeAtribuida);
 

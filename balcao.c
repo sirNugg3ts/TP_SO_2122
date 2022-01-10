@@ -2,13 +2,23 @@
 #include "balcao.h"
 #include "utils.h"
 #include "cliente.h"
+typedef struct utenteContainer{
+    pUtente first;
+   pthread_mutex_t list_mutex;
+}*pUtenteContainer;
 
 typedef struct {
     int *fd_balcao_classificador;
     int *fd_classificador_balcao;
     int fdServer;
     int stopReceiving;
+    int *nUtentesLigados;
+    int nMaxClientes;
+    int **nUtentesEspecialidade;
+    pUtenteContainer listaUtentes;
 } DADOS_REG_UTENTES;
+
+
 
 void apresentaMenu() {
     printf("\n");
@@ -63,13 +73,11 @@ void inicializaStruct(struct Balcao *balcao) {
     balcao->nClienteLigados = 0;
     balcao->nMedicosLigados = 0;
     for (int i = 0; i < 5; ++i)
-        balcao->filaDeEspera[i] = 0;
+        balcao->nUtentesEspecialidade[i] = 0;
 }
 
 void *recebeUtentes(void *Dados) {
     DADOS_REG_UTENTES *dadosRegUtentes = (DADOS_REG_UTENTES *) Dados;
-    //TODO: processamento de vários utentes, de momento apenas lê um
-    //TODO: Verificar se o balcao ta cheio
 
     fprintf(stdout,"\nWaiting for new clients...");
     fflush(stdout);
@@ -78,40 +86,155 @@ void *recebeUtentes(void *Dados) {
         //read pipe
         Utente u1;
         int size = read(dadosRegUtentes->fdServer, &u1, sizeof(u1));
+
         if (size > 0) {
-            printf("\nNovo Utente");
-            fflush(stdout);
+
             char CLIENT_FIFO_FINAL[MAX_STRING_SIZE];
-            char bufferClassificador[MAX_STRING_SIZE];
-            char *token;
+            int fdResposta;
 
-            printf("\nSintomas recebidos: %s",u1.sintomas);
+            //DEBUG
+            printf("\n/// nligados = %d ; nMax = %d",*dadosRegUtentes->nUtentesLigados,
+                   dadosRegUtentes->nMaxClientes);
+            fflush(stdout);
+            //DEBUG
 
-            //recebeu com sucesso
-            write(dadosRegUtentes->fd_balcao_classificador[1], u1.sintomas, strlen(u1.sintomas));
 
-            int size1 = read(dadosRegUtentes->fd_classificador_balcao[0],bufferClassificador,sizeof(bufferClassificador));
-            printf("\nInput classificador: %s",bufferClassificador);
 
-            //int size1= read(dadosRegUtentes->fd_classificador_balcao[0], u1.especialidadeAtribuida,sizeof(u1.especialidadeAtribuida));
-            bufferClassificador[size1] = '\0';
-            sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
 
-            //split
+            if((*dadosRegUtentes->nUtentesLigados) == (dadosRegUtentes->nMaxClientes)){
+                //server is full
 
-            token = strtok(bufferClassificador, " "); //
-            strcpy(u1.especialidadeAtribuida, token);
+                strcpy(u1.nomeUtente,"SERVERFULL");
+                sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
+                fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
+                write(fdResposta, &u1, sizeof(u1));
+                close(fdResposta);
 
-            while (token != NULL) {
-                u1.prioridadeAtribuida = atoi(token);
-               // printf(" %s\n", token); //debug
-                //fflush(stdout);
-                token = strtok(NULL, "\0");
+            }else{
+                char bufferClassificador[MAX_STRING_SIZE];
+                char *token;
+
+                pUtente newUtente = malloc(sizeof(Utente));
+
+                //DEBUG
+                printf("\nNovo Utente");
+                printf("\nSintomas recebidos: %s",u1.sintomas);
+                fflush(stdout);
+                //DEBUG
+
+                //transmitir ao classificador os sintomas
+                write(dadosRegUtentes->fd_balcao_classificador[1], u1.sintomas, strlen(u1.sintomas));
+
+                //ler resposta do classificador
+                int size1 = read(dadosRegUtentes->fd_classificador_balcao[0],bufferClassificador,sizeof(bufferClassificador));
+
+                //DEBUG
+                printf("\nInput classificador: %s",bufferClassificador);
+                //DEBUG
+
+                bufferClassificador[size1] = '\0';
+                sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
+
+                //split
+                token = strtok(bufferClassificador, " "); //
+                strcpy(u1.especialidadeAtribuida, token);
+
+                while (token != NULL) {
+                    u1.prioridadeAtribuida = atoi(token);
+                    token = strtok(NULL, "\0");
+                }
+
+
+                *newUtente = u1;
+
+                if(dadosRegUtentes->listaUtentes->first==NULL) //primeiro utente
+                {
+
+                    dadosRegUtentes->listaUtentes->first = newUtente;
+                    newUtente->next = NULL;
+                    (*dadosRegUtentes->nUtentesLigados)++;
+                }
+                else//já existem utentes
+                {
+                    pUtente percorre = dadosRegUtentes->listaUtentes->first;
+
+                    //verificar se a especialidade está cheia
+
+                    if(strcmp(newUtente->especialidadeAtribuida,"oftalmologia")==0){
+                        if(*dadosRegUtentes->nUtentesEspecialidade[0]==5){
+                            strcpy(u1.nomeUtente,"ESPECIALIDADEFULL");
+                            sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
+                            fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
+                            write(fdResposta, &u1, sizeof(u1));
+                            close(fdResposta);
+
+                        }else{
+                            (*dadosRegUtentes->nUtentesEspecialidade[0])++;
+                        }
+                    }
+                    if(strcmp(newUtente->especialidadeAtribuida,"neurologia")==0){
+                        if(*dadosRegUtentes->nUtentesEspecialidade[1]==5){
+                            strcpy(u1.nomeUtente,"ESPECIALIDADEFULL");
+                            sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
+                            fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
+                            write(fdResposta, &u1, sizeof(u1));
+                            close(fdResposta);
+                        }else{
+                            (*dadosRegUtentes->nUtentesEspecialidade[1])++;
+                        }
+                    }
+                    if(strcmp(newUtente->especialidadeAtribuida,"estomatologia")==0){
+                        if(*dadosRegUtentes->nUtentesEspecialidade[2]==5){
+                            strcpy(u1.nomeUtente,"ESPECIALIDADEFULL");
+                            sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
+                            fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
+                            write(fdResposta, &u1, sizeof(u1));
+                            close(fdResposta);
+                        }else{
+                            (*dadosRegUtentes->nUtentesEspecialidade[2])++;
+                        }
+                    }
+                    if(strcmp(newUtente->especialidadeAtribuida,"ortopedia")==0){
+                        if(*dadosRegUtentes->nUtentesEspecialidade[3]==5){
+                            strcpy(u1.nomeUtente,"ESPECIALIDADEFULL");
+                            sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
+                            fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
+                            write(fdResposta, &u1, sizeof(u1));
+                            close(fdResposta);
+                        }else{
+                            (*dadosRegUtentes->nUtentesEspecialidade[3])++;
+                        }
+                    }
+                    if(strcmp(newUtente->especialidadeAtribuida,"geral")==0){
+                        if(*dadosRegUtentes->nUtentesEspecialidade[4]==5){
+                            strcpy(u1.nomeUtente,"ESPECIALIDADEFULL");
+                            sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
+                            fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
+                            write(fdResposta, &u1, sizeof(u1));
+                            close(fdResposta);
+                        }else{
+                            (*dadosRegUtentes->nUtentesEspecialidade[4])++;
+                        }
+                    }
+
+                    //já se verificou, não está cheio, contador aumentado
+
+                    //inserir utente na lista
+                    while (percorre->next != NULL && percorre->prioridadeAtribuida){
+                        //todo: meter na lista segundo a prioridade
+                        //TODO: @sirNugg3ts Left here
+                        percorre = percorre->next;
+                    }
+                    percorre->next = newUtente;
+                    newUtente->next = NULL;
+                    (*dadosRegUtentes->nUtentesLigados)++;
+                }
+
+                int fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
+                write(fdResposta, &u1, sizeof(u1));
+                close(fdResposta);
             }
 
-            int fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
-            write(fdResposta, &u1, sizeof(u1));
-            close(fdResposta);
         }
     }
     pthread_exit(NULL);
@@ -120,11 +243,15 @@ void *recebeUtentes(void *Dados) {
 
 int main(int argc, char *argv[]) {
 
-    //TODO: 1 - Correctly clean all pipes
 
     struct Balcao balcao; //estrutura que guarda a informação necessária ao balcão
     char comando[MAX_STRING_SIZE];
+    char comando1[MAX_STRING_SIZE];
+    char comando2[MAX_STRING_SIZE];
     int fdServer, fd_balcao_classificador[2], fd_classificador_balcao[2];
+    char *token;
+
+    pUtenteContainer listaUtentes = NULL;
 
     fflush(stdout);
     fflush(stdin);
@@ -222,6 +349,14 @@ int main(int argc, char *argv[]) {
             dados.fd_classificador_balcao = fd_classificador_balcao;
             dados.fd_balcao_classificador = fd_balcao_classificador;
             dados.stopReceiving = 1;
+            listaUtentes = malloc(sizeof(pUtenteContainer));
+            dados.listaUtentes = listaUtentes;
+            listaUtentes->first=NULL;
+            dados.nUtentesLigados = &balcao.nClienteLigados;
+            dados.nUtentesEspecialidade = &balcao.nUtentesEspecialidade;
+
+            dados.nMaxClientes = balcao.N;
+            //dados.nMaxClientes = 0;
 
             printf("\nVou iniciar a thread");
             fflush(stdout);
@@ -239,12 +374,37 @@ int main(int argc, char *argv[]) {
             fflush(stdout);
             do {
                 fgets(comando, MAX_STRING_SIZE - 1, stdin);
-                comando[strcspn(comando, "\n")] = 0;
+               /* comando[strcspn(comando, "\n")] = 0; //OH NO, THE CODE, ITS BROKEN
+                token = strtok(comando, " ");
+                strcpy(comando1, token);
+                while(token!=NULL){
+                    token = strtok(NULL, "\0");
+                }
+                /*token = strtok(comando, " "); //
+                strcpy(comando, token);
+                while (token != NULL) {
+                    token = strtok(NULL, "\0");
+                    strcpy(comando2, token);
+                }*/
                 //TODO: Inserir o resto dos comandos
-                if (strcmp(comando, "help") == 0) {
+                if (strcmp(comando, "help\n") == 0) {
                     apresentaMenu();
                     fflush(stdout);
-                } else if (strcmp(comando, "encerra") == 0) {
+                }else if(strcmp(comando, "utentes\n") == 0){
+                    if(balcao.nClienteLigados == 0){
+                        fprintf(stdout,"\nNao existem clientes ligados de momento");
+                        fflush(stdout);
+                    }else{
+                        pUtente percorre = listaUtentes->first;
+                        while(percorre!=NULL) {
+                            printf("\nNome do utente: %s",percorre->nomeUtente);
+                            fflush(stdout);
+                            percorre=percorre->next;
+                        }
+
+                    }
+                }
+                else if (strcmp(comando, "encerra") == 0) {
                     dados.stopReceiving = 0; // parar de aceitar utentes
                     //TODO: Notificar que o balcao vai encerrar
                     //TODO: exit gracefully
