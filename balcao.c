@@ -20,6 +20,7 @@ typedef struct {
     int nMaxClientes;
     pUtenteContainer listaUtentes;
     int *nUtentesEspecialidade;
+    pthread_mutex_t mutexPrints;
 } DADOS_REG_UTENTES;
 
 
@@ -387,6 +388,7 @@ int main() {
             close(fd_classificador_balcao[1]);
 
             pthread_t threadRecebeUtentes;
+
             DADOS_REG_UTENTES dados;
             dados.fdServer = fdServer;
             dados.fd_classificador_balcao = fd_classificador_balcao;
@@ -422,7 +424,7 @@ int main() {
 
                 //comandos com 2 argumentos
 
-                if(strcmp(comando1, "delut") == 0 || strcmp(comando1, "delest") == 0){
+                if(strcmp(comando1, "delut") == 0 || strcmp(comando1, "delesp") == 0){
                     strcpy(comando2,strtok(NULL, " "));
                 }else if(strcmp(comando1, "freq") == 0){
                     strcpy(comando2,strtok(NULL, " "));
@@ -448,6 +450,10 @@ int main() {
                     }
                 }else if(strcmp(comando1, "delut") == 0){
                     printf("Segundo comando %s", comando2);
+                }else if(strcmp(comando1, "delesp")==0){
+                    printf("Segundo comando %s", comando2);
+                }else if(strcmp(comando1, "freq")==0){
+                    printf("Segundo comando %d", comandoN);
                 }
                 else if (strcmp(comando1, "encerra\n") == 0) {
                     dados.stopReceiving = 0; // parar de aceitar utentes
