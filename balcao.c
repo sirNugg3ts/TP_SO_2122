@@ -1,3 +1,7 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "cppcoreguidelines-narrowing-conversions"
+#pragma ide diagnostic ignored "cert-err34-c"
+
 #include <pthread.h>
 #include "balcao.h"
 #include "utils.h"
@@ -14,8 +18,8 @@ typedef struct {
     int stopReceiving;
     int *nUtentesLigados;
     int nMaxClientes;
-    int **nUtentesEspecialidade;
     pUtenteContainer listaUtentes;
+    int *nUtentesEspecialidade;
 } DADOS_REG_UTENTES;
 
 
@@ -77,7 +81,8 @@ void inicializaStruct(struct Balcao *balcao) {
 }
 
 void *recebeUtentes(void *Dados) {
-    DADOS_REG_UTENTES *dadosRegUtentes = (DADOS_REG_UTENTES *) Dados;
+    DADOS_REG_UTENTES *dadosRegUtentes;
+    dadosRegUtentes = (DADOS_REG_UTENTES *) Dados;
 
     fprintf(stdout,"\nWaiting for new clients...");
     fflush(stdout);
@@ -98,11 +103,9 @@ void *recebeUtentes(void *Dados) {
             fflush(stdout);
             //DEBUG
 
+            if((*dadosRegUtentes->nUtentesLigados) == (dadosRegUtentes->nMaxClientes))//server is full
+            {
 
-
-
-            if((*dadosRegUtentes->nUtentesLigados) == (dadosRegUtentes->nMaxClientes)){
-                //server is full
 
                 strcpy(u1.nomeUtente,"SERVERFULL");
                 sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
@@ -110,7 +113,9 @@ void *recebeUtentes(void *Dados) {
                 write(fdResposta, &u1, sizeof(u1));
                 close(fdResposta);
 
-            }else{
+            }
+            else //server is not full
+            {
                 char bufferClassificador[MAX_STRING_SIZE];
                 char *token;
 
@@ -146,9 +151,15 @@ void *recebeUtentes(void *Dados) {
 
 
                 *newUtente = u1;
+                newUtente->next=NULL;
 
                 if(dadosRegUtentes->listaUtentes->first==NULL) //primeiro utente
                 {
+                    //DEBUG
+                    printf("\n -- Primeiro utente ");
+                    fflush(stdout);
+                    //DEBUG
+
 
                     dadosRegUtentes->listaUtentes->first = newUtente;
                     newUtente->next = NULL;
@@ -158,10 +169,15 @@ void *recebeUtentes(void *Dados) {
                 {
                     pUtente percorre = dadosRegUtentes->listaUtentes->first;
 
-                    //verificar se a especialidade está cheia
+                    //DEBUG
+                    printf("\n  --Ja existem utentes na lista");
+                    fflush(stdout);
+                    //DEBUG
 
+                    //verificar se a especialidade está cheia
+                    //TODO validar que o array esta a aser atualizado como deve ser; this shit sus
                     if(strcmp(newUtente->especialidadeAtribuida,"oftalmologia")==0){
-                        if(*dadosRegUtentes->nUtentesEspecialidade[0]==5){
+                        if(dadosRegUtentes->nUtentesEspecialidade[0]==5){
                             strcpy(u1.nomeUtente,"ESPECIALIDADEFULL");
                             sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
                             fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
@@ -169,68 +185,96 @@ void *recebeUtentes(void *Dados) {
                             close(fdResposta);
 
                         }else{
-                            (*dadosRegUtentes->nUtentesEspecialidade[0])++;
+                            (dadosRegUtentes->nUtentesEspecialidade[0])++;
                         }
                     }
                     if(strcmp(newUtente->especialidadeAtribuida,"neurologia")==0){
-                        if(*dadosRegUtentes->nUtentesEspecialidade[1]==5){
+                        if(dadosRegUtentes->nUtentesEspecialidade[1]==5){
                             strcpy(u1.nomeUtente,"ESPECIALIDADEFULL");
                             sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
                             fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
                             write(fdResposta, &u1, sizeof(u1));
                             close(fdResposta);
                         }else{
-                            (*dadosRegUtentes->nUtentesEspecialidade[1])++;
+                            (dadosRegUtentes->nUtentesEspecialidade[1])++;
                         }
                     }
                     if(strcmp(newUtente->especialidadeAtribuida,"estomatologia")==0){
-                        if(*dadosRegUtentes->nUtentesEspecialidade[2]==5){
+                        if(dadosRegUtentes->nUtentesEspecialidade[2]==5){
                             strcpy(u1.nomeUtente,"ESPECIALIDADEFULL");
                             sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
                             fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
                             write(fdResposta, &u1, sizeof(u1));
                             close(fdResposta);
                         }else{
-                            (*dadosRegUtentes->nUtentesEspecialidade[2])++;
+                            (dadosRegUtentes->nUtentesEspecialidade[2])++;
                         }
                     }
                     if(strcmp(newUtente->especialidadeAtribuida,"ortopedia")==0){
-                        if(*dadosRegUtentes->nUtentesEspecialidade[3]==5){
+
+                        if(dadosRegUtentes->nUtentesEspecialidade[3]==5){
+
                             strcpy(u1.nomeUtente,"ESPECIALIDADEFULL");
                             sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
                             fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
                             write(fdResposta, &u1, sizeof(u1));
                             close(fdResposta);
                         }else{
-                            (*dadosRegUtentes->nUtentesEspecialidade[3])++;
+                            (dadosRegUtentes->nUtentesEspecialidade[3])++;
                         }
                     }
                     if(strcmp(newUtente->especialidadeAtribuida,"geral")==0){
-                        if(*dadosRegUtentes->nUtentesEspecialidade[4]==5){
+                        if(dadosRegUtentes->nUtentesEspecialidade[4]==5){
                             strcpy(u1.nomeUtente,"ESPECIALIDADEFULL");
                             sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, u1.pid);
                             fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
                             write(fdResposta, &u1, sizeof(u1));
                             close(fdResposta);
                         }else{
-                            (*dadosRegUtentes->nUtentesEspecialidade[4])++;
+                            (dadosRegUtentes->nUtentesEspecialidade[4])++;
                         }
                     }
 
-                    //já se verificou, não está cheio, contador aumentado
+                    //já se verificou, não está cheio, contador nUtentesEspecialista aumentado
+
+                    //DEBUG
+                    printf("\n Nao esta cheio ");
+                    fflush(stdout);
+                    //DEBUG
 
                     //inserir utente na lista
-                    while (percorre->next != NULL && percorre->prioridadeAtribuida){
-                        //todo: meter na lista segundo a prioridade
-                        //TODO: @sirNugg3ts Left here
-                        percorre = percorre->next;
+
+                    if(percorre->next == NULL) //existe apenas 1 utente
+                    {
+                        if(percorre->prioridadeAtribuida > newUtente->prioridadeAtribuida){
+                            newUtente->next = percorre;
+                            dadosRegUtentes->listaUtentes->first = newUtente;
+                        }else{
+                            percorre->next = newUtente;
+                            newUtente->next = NULL;
+                        }
                     }
-                    percorre->next = newUtente;
-                    newUtente->next = NULL;
-                    (*dadosRegUtentes->nUtentesLigados)++;
+
+                    else // existem mais que um
+                    {
+                        if(percorre->prioridadeAtribuida > newUtente->prioridadeAtribuida){
+                            newUtente->next = percorre;
+                            dadosRegUtentes->listaUtentes->first = newUtente;
+                        }else{
+                            while (percorre->next!=NULL){
+                                if(percorre->next->prioridadeAtribuida > newUtente->prioridadeAtribuida){
+                                    newUtente->next = percorre->next;
+                                    percorre->next = newUtente;
+                                    break;
+                                }
+                                percorre = percorre->next;
+                            }
+                            percorre->next = newUtente;
+                        }
+                    }
                 }
 
-                int fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
+                fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
                 write(fdResposta, &u1, sizeof(u1));
                 close(fdResposta);
             }
@@ -241,20 +285,19 @@ void *recebeUtentes(void *Dados) {
 }
 
 
-int main(int argc, char *argv[]) {
+int main() {
 
 
     struct Balcao balcao; //estrutura que guarda a informação necessária ao balcão
     char comando[MAX_STRING_SIZE];
     char comando1[MAX_STRING_SIZE];
     char comando2[MAX_STRING_SIZE];
+    int comandoN;
     int fdServer, fd_balcao_classificador[2], fd_classificador_balcao[2];
     char *token;
 
     pUtenteContainer listaUtentes = NULL;
 
-    fflush(stdout);
-    fflush(stdin);
 
     //iniciar pipe balcao
     if (mkfifo(SERVER_FIFO, 0777) == -1) {
@@ -353,7 +396,7 @@ int main(int argc, char *argv[]) {
             dados.listaUtentes = listaUtentes;
             listaUtentes->first=NULL;
             dados.nUtentesLigados = &balcao.nClienteLigados;
-            dados.nUtentesEspecialidade = &balcao.nUtentesEspecialidade;
+            dados.nUtentesEspecialidade = balcao.nUtentesEspecialidade;
 
             dados.nMaxClientes = balcao.N;
             //dados.nMaxClientes = 0;
@@ -373,38 +416,40 @@ int main(int argc, char *argv[]) {
             fprintf(stdout,"\nWrite \"Help\" for a list of commands");
             fflush(stdout);
             do {
+
                 fgets(comando, MAX_STRING_SIZE - 1, stdin);
-               /* comando[strcspn(comando, "\n")] = 0; //OH NO, THE CODE, ITS BROKEN
-                token = strtok(comando, " ");
-                strcpy(comando1, token);
-                while(token!=NULL){
-                    token = strtok(NULL, "\0");
+                strcpy(comando1,strtok(comando, " "));
+
+                //comandos com 2 argumentos
+
+                if(strcmp(comando1, "delut") == 0 || strcmp(comando1, "delest") == 0){
+                    strcpy(comando2,strtok(NULL, " "));
+                }else if(strcmp(comando1, "freq") == 0){
+                    strcpy(comando2,strtok(NULL, " "));
+                    comandoN=atoi(comando2);
                 }
-                /*token = strtok(comando, " "); //
-                strcpy(comando, token);
-                while (token != NULL) {
-                    token = strtok(NULL, "\0");
-                    strcpy(comando2, token);
-                }*/
+
                 //TODO: Inserir o resto dos comandos
-                if (strcmp(comando, "help\n") == 0) {
+                if (strcmp(comando1, "help\n") == 0) {
                     apresentaMenu();
                     fflush(stdout);
-                }else if(strcmp(comando, "utentes\n") == 0){
+                }else if(strcmp(comando1, "utentes\n") == 0){
                     if(balcao.nClienteLigados == 0){
                         fprintf(stdout,"\nNao existem clientes ligados de momento");
                         fflush(stdout);
                     }else{
                         pUtente percorre = listaUtentes->first;
                         while(percorre!=NULL) {
+                            //TODO: inserir informacao dos clientes
                             printf("\nNome do utente: %s",percorre->nomeUtente);
                             fflush(stdout);
                             percorre=percorre->next;
                         }
-
                     }
+                }else if(strcmp(comando1, "delut") == 0){
+                    printf("Segundo comando %s", comando2);
                 }
-                else if (strcmp(comando, "encerra") == 0) {
+                else if (strcmp(comando1, "encerra\n") == 0) {
                     dados.stopReceiving = 0; // parar de aceitar utentes
                     //TODO: Notificar que o balcao vai encerrar
                     //TODO: exit gracefully
@@ -416,3 +461,4 @@ int main(int argc, char *argv[]) {
         }
     }
 }
+#pragma clang diagnostic pop

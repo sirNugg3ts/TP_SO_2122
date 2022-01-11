@@ -5,6 +5,7 @@
 #include "balcao.h"
 #include "utils.h"
 #include <signal.h>
+#include "medico.h"
 
 void heartbeat(int signal, siginfo_t *i,void *v){
     //TODO: notificar balcao
