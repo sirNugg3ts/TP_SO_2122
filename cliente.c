@@ -56,46 +56,23 @@ int main(int argc, char*argv[]){
     sigaction(SIGINT,&sa,NULL);
 
 
-    //TODO: Verificar se o balcao esta cheio ou nao
-
     //obtem sintomas
     fprintf(stdout,"Indique os seus sintomas: ");
     fgets(u1.sintomas,MAX_STRING_SIZE-1,stdin);
 
-    fdServer = open(SERVER_FIFO,O_WRONLY);
+    fdServer = open(SERVER_FIFO,O_WRONLY );
     if(fdServer==-1) {
         printf("\nErro ao abrir o NamedPipe do Balcao\n");
         exit(1);
     }
-/*
-    MSG msg;
-    msg.sender = getpid();
-    strcpy(msg.msg,"REQUEST isBalcaoFull");
 
-    int size1 = write(fdServer,&msg,sizeof(msg));
-
-    if(size1<1){
-        fprintf(stderr,"\nErro ao pedir informacao ao servidor");
-        exit(1);
-    }else{
-        fdCliente = open(CLIENT_FIFO_FINAL,O_RDONLY);
-        MSG response;
-        int sizeResponse = read(fdCliente,&response,sizeof(response));
-        if(strcmp(response.msg,"false")){
-            fprintf(stderr,"\nO Balcao encontra-se cheio, a abortar");
-            exit(1);
-
-        }
-    }
-
-*/
     int size = write(fdServer,&u1,sizeof(u1));
     if(size<0){
         printf("\nErro ao escrever a estrutura para o pipe \n");
         exit(1);
     }
 
-    fdCliente = open(CLIENT_FIFO_FINAL,O_RDONLY);
+    fdCliente = open(CLIENT_FIFO_FINAL,O_RDONLY );
 
     int size2 = read(fdCliente,&u1,sizeof(u1));
     if(size2<0){
@@ -111,6 +88,52 @@ int main(int argc, char*argv[]){
     }
     fprintf(stdout,"\nAtribuido : %s",u1.especialidadeAtribuida);
     fprintf(stdout,"\nPrioridade: %d\n",u1.prioridadeAtribuida);
+    close(fdCliente);
+
+
+    fprintf(stdout,"\nA espera de medico...");
+    fflush(stdout);
+
+    MSG msg;
+    fdCliente = open(CLIENT_FIFO_FINAL,O_RDONLY );
+    int sizeReadMassage = read(fdCliente,&msg, sizeof(MSG));
+    char MEDICO_FIFO_FINAL[MAX_STRING_SIZE];
+    char input[MAX_STRING_SIZE];
+
+    if(sizeReadMassage>0){
+
+        sprintf(MEDICO_FIFO_FINAL,MEDICO_FIFO,atoi(msg.msg));
+    }
+    printf("\nConectado ao medico\n");
+    fflush(stdout);
+
+
+    do{
+        int nfd;
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(0, &read_fds);
+        FD_SET(fdCliente, &read_fds);
+
+        nfd = select(fdCliente+1,&read_fds,NULL,NULL,NULL);
+
+        if(FD_ISSET(0,&read_fds)){
+            //enviar texto para medico
+            fgets(input,99,stdin);
+            strcpy(msg.msg,input);
+            msg.sender = getpid();
+            int fdMedico = open(MEDICO_FIFO_FINAL,O_WRONLY );
+            write(fdMedico,&msg,sizeof(msg));
+            close(fdMedico);
+        }
+        if(FD_ISSET(fdCliente,&read_fds)){
+            //recebeu texto do medico
+            int readSize = read(fdCliente,&msg, sizeof(MSG));
+            if(readSize > 0){
+                fprintf(stdout,"Medico: %s",msg.msg);
+            }
+        }
+    } while (strcmp(msg.msg,"adeus")!=0 || strcmp(input,"adeus")!=0);
 
     close(fdServer);
     unlink(CLIENT_FIFO_FINAL);
