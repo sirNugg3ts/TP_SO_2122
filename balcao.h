@@ -32,6 +32,12 @@ struct dadosManager{
     int stop;
 };
 
+struct dadosHeartbeat{
+    pEspecialista listaEspecialistas;
+    int stop;
+    int fdHeartbeat;
+};
+
 typedef struct {
     int *fd_balcao_classificador;
     int *fd_classificador_balcao;
@@ -41,6 +47,7 @@ typedef struct {
     int nMaxClientes;
     pUtenteContainer listaUtentes;
     int *nUtentesEspecialidade;
+    pEspecialista listaEspecialistas;
     pthread_mutex_t *mutexPrints;
 } DADOS_REG_UTENTES;
 

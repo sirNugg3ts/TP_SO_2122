@@ -59,6 +59,7 @@ int main(int argc, char*argv[]){
     //obtem sintomas
     fprintf(stdout,"Indique os seus sintomas: ");
     fgets(u1.sintomas,MAX_STRING_SIZE-1,stdin);
+    u1.atendido = 0;
 
     fdServer = open(SERVER_FIFO,O_WRONLY );
     if(fdServer==-1) {
@@ -86,8 +87,12 @@ int main(int argc, char*argv[]){
         fprintf(stdout,"Foi lhe atribuido a especialidade %s, mas esta ja se encontra cheia",u1.especialidadeAtribuida);
         exit(0);
     }
-    fprintf(stdout,"\nAtribuido : %s",u1.especialidadeAtribuida);
-    fprintf(stdout,"\nPrioridade: %d\n",u1.prioridadeAtribuida);
+    close(fdCliente);
+    MSG msgStatus;
+    fdCliente = open(CLIENT_FIFO_FINAL,O_RDONLY );
+    read(fdCliente,&msgStatus,sizeof(MSG));
+    fprintf(stdout,"%s\n",msgStatus.msg);
+    fflush(stdout);
     close(fdCliente);
 
 
@@ -101,21 +106,19 @@ int main(int argc, char*argv[]){
     char input[MAX_STRING_SIZE];
 
     if(sizeReadMassage>0){
-
         sprintf(MEDICO_FIFO_FINAL,MEDICO_FIFO,atoi(msg.msg));
     }
     printf("\nConectado ao medico\n");
     fflush(stdout);
 
-
     do{
-        int nfd;
+
         fd_set read_fds;
         FD_ZERO(&read_fds);
         FD_SET(0, &read_fds);
         FD_SET(fdCliente, &read_fds);
 
-        nfd = select(fdCliente+1,&read_fds,NULL,NULL,NULL);
+        select(fdCliente+1,&read_fds,NULL,NULL,NULL);
 
         if(FD_ISSET(0,&read_fds)){
             //enviar texto para medico
@@ -131,6 +134,10 @@ int main(int argc, char*argv[]){
             int readSize = read(fdCliente,&msg, sizeof(MSG));
             if(readSize > 0){
                 fprintf(stdout,"Medico: %s",msg.msg);
+            }
+            if(strcmp(msg.msg,"adeus")==0){
+                printf("O médico terminou a consulta !!");
+
             }
         }
     } while (strcmp(msg.msg,"adeus")!=0 || strcmp(input,"adeus")!=0);

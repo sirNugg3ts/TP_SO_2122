@@ -5,6 +5,7 @@
 #include "balcao.h"
 #include "utils.h"
 #include <signal.h>
+#include <pthread.h>
 #include "medico.h"
 
 void inicializaEstrutura(int argc, char* argv[],pEspecialista especialista){
@@ -27,10 +28,16 @@ void inicializaEstrutura(int argc, char* argv[],pEspecialista especialista){
     especialista->pid = getpid();
 }
 
-pid_t pidServidor;
+struct dadosThread{
+    pid_t servidor;
+};
 
-void handleAlarm(int s,siginfo_t *info,void *c){
 
+
+void *heartbeat(void *Dados){
+    struct dadosThread *dadosThread = (struct dadosThread *) Dados;
+
+    sleep(20);
 }
 
 int main(int argc, char* argv[]){
@@ -92,6 +99,16 @@ int main(int argc, char* argv[]){
 
 
     fd_set read_fds;
+    pthread_t threadHeartbeat;
+
+    struct dadosThread dadosThread;
+    dadosThread.servidor = e1.pidServer;
+
+    if (pthread_create(&threadHeartbeat, NULL, &heartbeat, &dadosThread) != 0) {
+        fprintf(stderr, "\nErro ao criar thread para receber utentes\nA terminar...");
+        exit(1);
+    }
+
 
     MSG msgServer;
 
@@ -109,16 +126,14 @@ int main(int argc, char* argv[]){
     printf("\nConectado ao utente:\n");
     fflush(stdout);
 
-
+    MSG msg;
+    char input[MAX_STRING_SIZE];
     do{
-
-        char input[MAX_STRING_SIZE];
-        MSG msg;
         FD_ZERO(&read_fds);
         FD_SET(0,&read_fds);
         FD_SET(fdEspecialista,&read_fds);
 
-        int nfd = select(fdEspecialista+1,&read_fds,NULL,NULL,NULL);
+        select(fdEspecialista+1,&read_fds,NULL,NULL,NULL);
 
         if(FD_ISSET(0,&read_fds)) //enviar mensagem para o pipe do cliente
         {
@@ -136,14 +151,12 @@ int main(int argc, char* argv[]){
             int readSize = read(fdEspecialista,&msg, sizeof(MSG));
             if(readSize > 0){
                 fprintf(stdout,"Cliente: %s \n",msg.msg);
+                if(strcmp(msg.msg,"adeus")==0){
+                    printf("O utente terminou a consulta !!");
+                    kill(pid, SIGUSR1);
+                }
             }
         }
-    }while(1);
-
-    //à espera de contacto
-
-
-
-
+    }while(strcmp(msg.msg,"adeus")!=0 || strcmp(input,"adeus")!=0);
 
 }

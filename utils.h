@@ -18,6 +18,7 @@
 #define SERVER_FIFO_FOR_MEDICS "/tmp/balc_fifo_medics"
 #define CLIENT_FIFO "/tmp/client_fifo_%d"
 #define MEDICO_FIFO "/tmp/medico_fifo_%d"
+#define HEARTBEATFIFO "/tmp/heartbeat"
 
 typedef struct{
     pid_t sender;

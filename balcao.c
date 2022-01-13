@@ -1,7 +1,3 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "cppcoreguidelines-narrowing-conversions"
-#pragma ide diagnostic ignored "cert-err34-c"
-
 #include <pthread.h>
 #include "balcao.h"
 #include "utils.h"
@@ -64,34 +60,31 @@ void inicializaStruct(struct Balcao *balcao) {
         balcao->nUtentesEspecialidade[i] = 0;
 }
 
-void *estabeleceContacto(void *Dados){
-    struct dadosManager *dados = (struct dadosManager*)Dados;
+void *estabeleceContacto(void *Dados) {
+    struct dadosManager *dados = (struct dadosManager *) Dados;
 
-    while(dados->stop){
+    while (dados->stop) {
 
         pUtente percorre = dados->listaUtentes->first;
         pEspecialista percorreEspecialista = dados->listaEspecialistas->next;
 
-        while(percorre!=NULL){
-            while (percorreEspecialista!=NULL){
-                printf("\n## %s | %s\n",percorre->especialidadeAtribuida,percorreEspecialista->especialidade);
-                printf("-- %d\n",strcmp(percorre->especialidadeAtribuida,percorreEspecialista->especialidade));
-                fflush(stdout);
-                if(strcmp(percorre->especialidadeAtribuida,percorreEspecialista->especialidade) == 0){
-                    //TODO COMECAR COMUNICACAO
+        while (percorre != NULL) {
+            while (percorreEspecialista != NULL) {
+                if (strcmp(percorre->especialidadeAtribuida, percorreEspecialista->especialidade) == 0
+                && percorre->atendido==0 && percorreEspecialista->ocupado == 0) {
 
                     //notificar o cliente que vai comunicar com PID medico
                     MSG msgCliente;
                     char pidMedico[6];
-                    sprintf(pidMedico,"%d",percorreEspecialista->pid);
-                    strcpy(msgCliente.msg,pidMedico);
+                    sprintf(pidMedico, "%d", percorreEspecialista->pid);
+                    strcpy(msgCliente.msg, pidMedico);
                     char CLIENT_FIFO_FINAL[MAX_STRING_SIZE];
-                    sprintf(CLIENT_FIFO_FINAL,CLIENT_FIFO,percorre->pid);
-                    int fdUtente = open(CLIENT_FIFO_FINAL,O_WRONLY);
-                    if(fdUtente == -1){
+                    sprintf(CLIENT_FIFO_FINAL, CLIENT_FIFO, percorre->pid);
+                    int fdUtente = open(CLIENT_FIFO_FINAL, O_WRONLY);
+                    if (fdUtente == -1) {
                         //TODO HANDLE ERROR
                     }
-                    write(fdUtente,&msgCliente, sizeof(MSG));
+                    write(fdUtente, &msgCliente, sizeof(MSG));
                     close(fdUtente);
 
 
@@ -99,17 +92,17 @@ void *estabeleceContacto(void *Dados){
 
                     MSG msgMedico;
                     char pidCliente[6];
-                    sprintf(pidCliente,"%d",percorre->pid);
-                    strcpy(msgMedico.msg,pidCliente);
+                    sprintf(pidCliente, "%d", percorre->pid);
+                    strcpy(msgMedico.msg, pidCliente);
                     char MEDICO[MAX_STRING_SIZE];
-                    sprintf(MEDICO,MEDICO_FIFO,percorreEspecialista->pid);
-                    int fdEspecialista = open(MEDICO,O_WRONLY);
-                    if(fdEspecialista == -1){
+                    sprintf(MEDICO, MEDICO_FIFO, percorreEspecialista->pid);
+                    int fdEspecialista = open(MEDICO, O_WRONLY);
+                    if (fdEspecialista == -1) {
                         //TODO HANDLE ERROR
                     }
-                    write(fdEspecialista,&msgMedico, sizeof(msgMedico));
+                    write(fdEspecialista, &msgMedico, sizeof(msgMedico));
                     close(fdEspecialista);
-/*
+
                     //tirar cliente da fila de espera
                     if (strcmp(percorre->especialidadeAtribuida, "oftalmologia") == 0)
                         (dados->nUtentesEspecialidade[0])--;
@@ -121,22 +114,39 @@ void *estabeleceContacto(void *Dados){
                         (dados->nUtentesEspecialidade[3])--;
                     if (strcmp(percorre->especialidadeAtribuida, "geral") == 0)
                         (dados->nUtentesEspecialidade[4])--;
-*/
 
+                    percorre->atendido = 1;
+                    percorreEspecialista->ocupado=1;
+                    strcpy(percorre->nomeMedico,percorreEspecialista->nomeMedico);
+
+                    printf("\nO utente %s sera atendido pelo medico %s",percorre->nomeUtente,percorreEspecialista->nomeMedico);
+                    fflush(stdout);
+
+/* REMOVE UTENTE DA LISTA DE UTENTES
                     pUtente percorreRemover = dados->listaUtentes->first;
-                    if(percorreRemover==percorre){
+                    if (percorreRemover == percorre) {
                         dados->listaUtentes->first = percorre->next;
-                    }else{
-                        while(percorreRemover->next!=percorre)
+                    } else {
+                        while (percorreRemover->next != percorre)
                             percorreRemover = percorreRemover->next;
                         percorreRemover->next = percorre->next;
                         free(percorre);
                     }
+*/
                     break;
                 }
                 percorreEspecialista = percorreEspecialista->next;
             }
             percorre = percorre->next;
+        }
+        //verificar se ha medicos mortos
+        percorreEspecialista = dados->listaEspecialistas->next;
+        while (percorreEspecialista != NULL){
+            if(percorreEspecialista->missedHeartbeats == 2){
+                //TODO REMOVER MEDICO
+
+            }
+            percorreEspecialista = percorreEspecialista->next;
         }
         sleep(2);
     }
@@ -153,16 +163,15 @@ void *recebeUtentes(void *Dados) {
     pthread_mutex_unlock(dadosRegUtentes->mutexPrints);
 
     while (dadosRegUtentes->stopReceiving) {
-        //read pipe
+
         Utente u1;
         int size = read(dadosRegUtentes->fdServer, &u1, sizeof(u1));
 
         if (size > 0) {
 
-            char CLIENT_FIFO_FINAL[MAX_STRING_SIZE],bufferClassificador[MAX_STRING_SIZE];
+            char CLIENT_FIFO_FINAL[MAX_STRING_SIZE], bufferClassificador[MAX_STRING_SIZE];
             char *token;
             int fdResposta;
-
 
             if ((*dadosRegUtentes->nUtentesLigados) == (dadosRegUtentes->nMaxClientes))//server is full
             {
@@ -196,6 +205,7 @@ void *recebeUtentes(void *Dados) {
                 }
 
                 *newUtente = u1;
+                int nUtentesAfrente = 0;
                 newUtente->next = NULL;
 
                 if (dadosRegUtentes->listaUtentes->first == NULL) //primeiro utente
@@ -214,11 +224,14 @@ void *recebeUtentes(void *Dados) {
                     if (strcmp(newUtente->especialidadeAtribuida, "geral") == 0)
                         (dadosRegUtentes->nUtentesEspecialidade[4])++;
 
+                    nUtentesAfrente = 0;
+
                     pthread_mutex_lock(dadosRegUtentes->mutexPrints);
-                    fprintf(stdout,"Novo Utente:\nNome: %s\nSintomas: %s\nEspecialidade: %s\n",newUtente->nomeUtente,
-                            newUtente->sintomas,newUtente->especialidadeAtribuida);
+                    fprintf(stdout, "Novo Utente:\nNome: %s\nSintomas: %s\nEspecialidade: %s\n", newUtente->nomeUtente,
+                            newUtente->sintomas, newUtente->especialidadeAtribuida);
                     fflush(stdout);
                     pthread_mutex_unlock(dadosRegUtentes->mutexPrints);
+
                 } else//já exitem utentes
                 {
                     pUtente percorre = dadosRegUtentes->listaUtentes->first;
@@ -231,8 +244,11 @@ void *recebeUtentes(void *Dados) {
                             fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
                             write(fdResposta, &u1, sizeof(u1));
                             close(fdResposta);
-                        } else
+                        } else{
                             (dadosRegUtentes->nUtentesEspecialidade[0])++;
+                            nUtentesAfrente = (dadosRegUtentes->nUtentesEspecialidade[0])-1;
+                        }
+
 
                     }
 
@@ -243,8 +259,10 @@ void *recebeUtentes(void *Dados) {
                             fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
                             write(fdResposta, &u1, sizeof(u1));
                             close(fdResposta);
-                        } else
+                        } else{
                             (dadosRegUtentes->nUtentesEspecialidade[1])++;
+                            nUtentesAfrente = (dadosRegUtentes->nUtentesEspecialidade[1])-1;
+                        }
 
                     }
 
@@ -255,8 +273,10 @@ void *recebeUtentes(void *Dados) {
                             fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
                             write(fdResposta, &u1, sizeof(u1));
                             close(fdResposta);
-                        } else
+                        } else{
                             (dadosRegUtentes->nUtentesEspecialidade[2])++;
+                            nUtentesAfrente = (dadosRegUtentes->nUtentesEspecialidade[2])-1;
+                        }
 
                     }
 
@@ -267,8 +287,10 @@ void *recebeUtentes(void *Dados) {
                             fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
                             write(fdResposta, &u1, sizeof(u1));
                             close(fdResposta);
-                        } else
+                        } else{
                             (dadosRegUtentes->nUtentesEspecialidade[3])++;
+                            nUtentesAfrente = (dadosRegUtentes->nUtentesEspecialidade[3])-1;
+                        }
                     }
 
                     if (strcmp(newUtente->especialidadeAtribuida, "geral") == 0) {
@@ -278,8 +300,10 @@ void *recebeUtentes(void *Dados) {
                             fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
                             write(fdResposta, &u1, sizeof(u1));
                             close(fdResposta);
-                        } else
+                        } else{
                             (dadosRegUtentes->nUtentesEspecialidade[4])++;
+                            nUtentesAfrente = (dadosRegUtentes->nUtentesEspecialidade[4])-1;
+                        }
 
                     }
 
@@ -288,11 +312,11 @@ void *recebeUtentes(void *Dados) {
                     //inserir utente na lista
                     (*dadosRegUtentes->nUtentesLigados)++;
 
-                   pthread_mutex_lock(dadosRegUtentes->mutexPrints);
-                   fprintf(stdout,"Novo Utente:\nNome: %s\nSintomas: %s\nEspecialidade: %s\n",newUtente->nomeUtente,
-                           newUtente->sintomas,newUtente->especialidadeAtribuida);
-                   fflush(stdout);
-                   pthread_mutex_unlock(dadosRegUtentes->mutexPrints);
+                    pthread_mutex_lock(dadosRegUtentes->mutexPrints);
+                    fprintf(stdout, "Novo Utente:\nNome: %s\nSintomas: %sEspecialidade: %s\n\n", newUtente->nomeUtente,
+                            newUtente->sintomas, newUtente->especialidadeAtribuida);
+                    fflush(stdout);
+                    pthread_mutex_unlock(dadosRegUtentes->mutexPrints);
 
                     if (percorre->next == NULL) //existe apenas 1 utente
                     {
@@ -325,70 +349,116 @@ void *recebeUtentes(void *Dados) {
                 fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
                 write(fdResposta, &u1, sizeof(u1));
                 close(fdResposta);
+
+                int nEspecialistas = 0;
+
+                pEspecialista percorreEspecialistas = dadosRegUtentes->listaEspecialistas->next;
+                while (percorreEspecialistas!=NULL){
+                    if(strcmp(percorreEspecialistas->especialidade,u1.especialidadeAtribuida)==0)
+                        nEspecialistas++;
+                    percorreEspecialistas = percorreEspecialistas->next;
+                }
+
+
+
+
+                fdResposta = open(CLIENT_FIFO_FINAL, O_WRONLY);
+                MSG msg;
+                char mensagem[MAX_STRING_SIZE];
+                char finalMessage[MAX_STRING_SIZE];
+
+                strcpy(mensagem,"Especialidade: %s\nPrioridade: %d\nUtentes em fila:%d"
+                                "\nEspecialistas: %d");
+                sprintf(finalMessage, mensagem, newUtente->especialidadeAtribuida, newUtente->prioridadeAtribuida,
+                        nUtentesAfrente, nEspecialistas);
+                strcpy(msg.msg,finalMessage);
+                write(fdResposta,&msg,sizeof(MSG));
+                close(fdResposta);
             }
         }
-
     }
     pthread_exit(NULL);
 }
 
-void *recebeMedicos(void *Dados){
+void *recebeMedicos(void *Dados) {
 
-    DADOS_REG_MEDICOS *dados = (DADOS_REG_MEDICOS *)Dados;
+    DADOS_REG_MEDICOS *dados = (DADOS_REG_MEDICOS *) Dados;
 
     pthread_mutex_lock(dados->mutexPrints);
-    fprintf(stdout,"\nWaiting for new especialistas...");
+    fprintf(stdout, "\nWaiting for new especialistas...");
     fflush(stdout);
     pthread_mutex_unlock(dados->mutexPrints);
 
-    while(dados->stopReceiving){
+    while (dados->stopReceiving) {
         Especialista e;
-        int size = read(dados->fdServer,&e,sizeof(e));
 
-        if(size > 0){
+        int size = read(dados->fdServer, &e, sizeof(e));
+        if (size > 0) {
             char MEDICO_FIFO_FINAL[MAX_STRING_SIZE];
             int fdResposta;
 
-            pthread_mutex_lock(dados->mutexPrints);
-            printf("\nNovo medico");
-            fflush(stdout);
-            pthread_mutex_unlock(dados->mutexPrints);
-
-            if((*dados->nMedicosLigados) == (dados->nMaxMedicos))//server is full
+            if ((*dados->nMedicosLigados) == (dados->nMaxMedicos))//server is full
             {
-                strcpy(e.nomeMedico,"SERVERFULL");
-                sprintf(MEDICO_FIFO_FINAL,MEDICO_FIFO,e.pid);
-                fdResposta = open(MEDICO_FIFO_FINAL,O_WRONLY);
-                write(fdResposta,&e,sizeof(e));
+                strcpy(e.nomeMedico, "SERVERFULL");
+                sprintf(MEDICO_FIFO_FINAL, MEDICO_FIFO, e.pid);
+                fdResposta = open(MEDICO_FIFO_FINAL, O_WRONLY);
+                write(fdResposta, &e, sizeof(e));
                 close(fdResposta);
-            }
-            else //server not full
+            } else //server not full
             {
+                pthread_mutex_lock(dados->mutexPrints);
+                printf("\nNovo medico:\nNome: %s\nEspecialidade: %s", e.nomeMedico, e.especialidade);
+                fflush(stdout);
+                pthread_mutex_unlock(dados->mutexPrints);
+
                 pEspecialista especialita = malloc(sizeof(Especialista));
                 *especialita = e;
+                especialita->ocupado = 0;
                 especialita->next = NULL;
-                if(dados->lista->next == NULL)
-                    dados->lista->next= especialita;
-                else{
+                if (dados->lista->next == NULL)
+                    dados->lista->next = especialita;
+                else {
                     pEspecialista percorre = dados->lista->next;
-                    while(percorre->next!=NULL)
-                        percorre=percorre->next;
+                    while (percorre->next != NULL)
+                        percorre = percorre->next;
                     percorre->next = especialita;
                 }
 
                 (*dados->nMedicosLigados)++;
-                sprintf(MEDICO_FIFO_FINAL,MEDICO_FIFO,e.pid);
-                fdResposta = open(MEDICO_FIFO_FINAL,O_WRONLY);
-                write(fdResposta,&e,sizeof(e));
+                especialita->pidServer = getpid();
+                sprintf(MEDICO_FIFO_FINAL, MEDICO_FIFO, e.pid);
+                fdResposta = open(MEDICO_FIFO_FINAL, O_WRONLY);
+                write(fdResposta, &e, sizeof(e));
                 close(fdResposta);
             }
         }
     }
     pthread_exit(NULL);
-
 }
 
-void createFifos(){
+struct dadosStatus{
+    int *ocupacao;
+    int *timeFreq;
+    int stopShowing;
+};
+
+void *apresentaStatusEspera(void *Dados){
+    struct dadosStatus *dadosStatus = (struct dadosStatus*)Dados;
+    while(dadosStatus->stopShowing){
+        printf("\n###\nStatus:\n");
+        printf("Oftalmologia: %d\n",dadosStatus->ocupacao[0]);
+        printf("Neurologia: %d\n",dadosStatus->ocupacao[1]);
+        printf("Estomatologia: %d\n",dadosStatus->ocupacao[2]);
+        printf("Ortopedia: %d\n",dadosStatus->ocupacao[3]);
+        printf("Geral: %d\n",dadosStatus->ocupacao[4]);
+        printf("###\n");
+        fflush(stdout);
+        sleep(*dadosStatus->timeFreq);
+    }
+    pthread_exit(NULL);
+}
+
+void createFifos() {
     //iniciar pipe balcao
     if (mkfifo(SERVER_FIFO, 0777) == -1) {
         if (errno == EEXIST) {
@@ -407,9 +477,17 @@ void createFifos(){
         fprintf(stderr, "\nErro ao criar pipe -> MEDICALso_server");
         exit(1);
     }
+
+    if(mkfifo(HEARTBEATFIFO,0777) == -1){
+        if (errno == EEXIST) {
+            fprintf(stderr, "\nO pipe ja existe -> MEDICALso_server ");
+            exit(1);
+        }
+        fprintf(stderr, "\nErro ao criar pipe -> MEDICALso_server");
+    }
 }
 
-void openPipes(int *fdServer, int *fdServerMedics, int fd_balcao_classificador[],int fd_classificador_balcao[]){
+void openPipes(int *fdHeartbeat,int *fdServer, int *fdServerMedics, int fd_balcao_classificador[], int fd_classificador_balcao[]) {
     //FD servidor
     *fdServer = open(SERVER_FIFO, O_RDONLY | O_NONBLOCK);
     if (*fdServer == -1) {
@@ -427,6 +505,11 @@ void openPipes(int *fdServer, int *fdServerMedics, int fd_balcao_classificador[]
         exit(2);
     }
 
+    *fdHeartbeat = open(HEARTBEATFIFO,O_RDONLY);
+    if(*fdHeartbeat == -1)
+        //TODO CLEANUP
+
+
     //File Descriptors para comunicação com o Classificador
 
     if (pipe(fd_balcao_classificador) == -1 || pipe(fd_classificador_balcao) == -1) {
@@ -438,16 +521,43 @@ void openPipes(int *fdServer, int *fdServerMedics, int fd_balcao_classificador[]
     }
 }
 
+void *handleHeartBeats(void *Dados){
+    struct dadosHeartbeat *dadosHeartbeat = (struct dadosHeartbeat*) Dados;
+
+    while (dadosHeartbeat->stop){
+        int pidReader;
+        int size = read(dadosHeartbeat->fdHeartbeat,&pidReader,sizeof(int));
+        if(size>0){
+            int flag = 0;
+            pEspecialista percorre = dadosHeartbeat->listaEspecialistas->next;
+            while (percorre!=NULL){
+                if(percorre->pid == pidReader){
+                    (percorre->missedHeartbeats)--;
+                    flag = 1;
+                    break;
+                }
+                percorre = percorre->next;
+            }
+            if(flag == 0){
+                printf("\nWarning: recebido heartbeat de processo desconhecido");
+                fflush(stdout);
+            }
+        }
+    }
+}
+
+
 int main() {
 
     struct Balcao balcao; //estrutura que guarda a informação necessária ao balcão
-    char comando[MAX_STRING_SIZE],comando1[MAX_STRING_SIZE],comando2[MAX_STRING_SIZE];
-    int fdServer,fdServerMedics, fd_balcao_classificador[2], fd_classificador_balcao[2],comandoN;
+    char comando[MAX_STRING_SIZE], comando1[MAX_STRING_SIZE], comando2[MAX_STRING_SIZE];
+    int fdHeartbeat,fdServer, fdServerMedics, fd_balcao_classificador[2], fd_classificador_balcao[2], comandoN;
     pUtenteContainer listaUtentes = NULL;
     pEspecialista listaEspecialistas = NULL;
 
+
     createFifos();
-    openPipes(&fdServer,&fdServerMedics,fd_balcao_classificador,fd_classificador_balcao);
+    openPipes(&fdHeartbeat,&fdServer, &fdServerMedics, fd_balcao_classificador, fd_classificador_balcao);
 
     //inicialização
     if (obtemVariaveisAmbiente(&balcao) == -1) {
@@ -513,8 +623,6 @@ int main() {
             listaEspecialistas->next = NULL;
 
 
-
-
             DADOS_REG_UTENTES dados;
             dados.fdServer = fdServer;
             dados.fd_classificador_balcao = fd_classificador_balcao;
@@ -525,6 +633,7 @@ int main() {
             dados.nUtentesEspecialidade = balcao.nUtentesEspecialidade;
             dados.mutexPrints = &mutexPrints;
             dados.nMaxClientes = balcao.N;
+            dados.listaEspecialistas = listaEspecialistas;
 
             if (pthread_create(&threadRecebeUtentes, NULL, &recebeUtentes, &dados) != 0) {
                 fprintf(stderr, "\nErro ao criar thread para receber utentes\nA terminar...");
@@ -552,9 +661,32 @@ int main() {
             struct dadosManager dadosManager;
             dadosManager.listaUtentes = listaUtentes;
             dadosManager.listaEspecialistas = listaEspecialistas;
+            dadosManager.nUtentesEspecialidade = balcao.nUtentesEspecialidade;
             dadosManager.stop = 1;
 
             if (pthread_create(&threadGestor, NULL, &estabeleceContacto, &dadosManager) != 0) {
+                fprintf(stderr, "\nErro ao criar thread para receber utentes\nA terminar...");
+                exit(1);
+            }
+
+            pthread_t status;
+            struct dadosStatus dadosStatus;
+            dadosStatus.ocupacao = balcao.nUtentesEspecialidade;
+            dadosStatus.stopShowing = 1;
+            *dadosStatus.timeFreq = 30;
+
+            if (pthread_create(&status, NULL, &apresentaStatusEspera, &dadosStatus) != 0) {
+                fprintf(stderr, "\nErro ao criar thread para receber utentes\nA terminar...");
+                exit(1);
+            }
+
+            pthread_t heartbeatTrhead;
+            struct dadosHeartbeat dadosHeartbeat;
+            dadosHeartbeat.listaEspecialistas = listaEspecialistas;
+            dadosHeartbeat.stop = 1;
+            dadosHeartbeat.fdHeartbeat = fdHeartbeat;
+
+            if (pthread_create(&heartbeatTrhead, NULL, &handleHeartBeats, &dadosHeartbeat) != 0) {
                 fprintf(stderr, "\nErro ao criar thread para receber utentes\nA terminar...");
                 exit(1);
             }
@@ -573,14 +705,11 @@ int main() {
 
                 if (strcmp(comando1, "delut") == 0 || strcmp(comando1, "delesp") == 0) {
                     strcpy(comando2, strtok(NULL, " "));
-                } else if (strcmp(comando1, "freq") == 0) {
-                    strcpy(comando2, strtok(NULL, " "));
-                    comandoN = atoi(comando2);
                 }
 
 
                 //DEBUG
-                if(strcmp(comando1,"medicos\n") == 0) {
+                if (strcmp(comando1, "medicos\n") == 0) {
                     if (balcao.nMedicosLigados == 0) {
                         pthread_mutex_lock(&mutexPrints);
                         fprintf(stdout, "\nNao existem medicos ligados de momento");
@@ -599,14 +728,12 @@ int main() {
                         }
                     }
                 }
-                //DEBUG
                 if (strcmp(comando1, "help\n") == 0) {
                     pthread_mutex_lock(&mutexPrints);
                     apresentaMenu();
                     fflush(stdout);
                     pthread_mutex_unlock(&mutexPrints);
-                } else if (strcmp(comando1, "utentes\n") == 0) {//DEBUG
-                    //DEBUG
+                } else if (strcmp(comando1, "utentes\n") == 0) {
                     if (balcao.nClienteLigados == 0) {
                         pthread_mutex_lock(&mutexPrints);
                         fprintf(stdout, "\nNao existem clientes ligados de momento");
@@ -614,24 +741,39 @@ int main() {
                         pthread_mutex_unlock(&mutexPrints);
                     } else {
                         pUtente percorre = listaUtentes->first;
+                        printf("\n######");
+                        fflush(stdout);
                         while (percorre != NULL) {
-                            //TODO: inserir informacao dos clientes
                             pthread_mutex_lock(&mutexPrints);
-                            printf("\nNome do utente: %s", percorre->nomeUtente);
+                            printf("\nNome do utente: %s\n"
+                                   "Especialidade: %s\n"
+                                   "Prioridade: %d\n", percorre->nomeUtente,percorre->especialidadeAtribuida,
+                                   percorre->prioridadeAtribuida);
+                            if(percorre->atendido){
+                                printf("Atendido por: %s\n",percorre->nomeMedico);
+                            }else{
+                                printf("A espera de especialista\n");
+                            }
                             fflush(stdout);
                             pthread_mutex_unlock(&mutexPrints);
                             percorre = percorre->next;
                         }
+                        printf("\n######");
+                        fflush(stdout);
                     }
                 } else if (strcmp(comando1, "delut") == 0) {
                     printf("Segundo comando %s", comando2);
                 } else if (strcmp(comando1, "delesp") == 0) {
                     printf("Segundo comando %s", comando2);
                 } else if (strcmp(comando1, "freq") == 0) {
-                    printf("Segundo comando %d", comandoN);
+                    int n = atoi(comando2);
+                    if(n<=0)
+                        printf("Valor invalido\n");
+                    else
+                        *dadosStatus.timeFreq = n;
                 } else if (strcmp(comando1, "encerra\n") == 0) {
                     dados.stopReceiving = 0; // parar de aceitar utentes
-                  //  dadosManager.stop = 0; //parar de estabelecer conexões
+                    //  dadosManager.stop = 0; //parar de estabelecer conexões
                     pthread_cancel(threadGestor);
                     //TODO: Notificar que o balcao vai encerrar
                     //TODO: exit gracefully
@@ -643,5 +785,3 @@ int main() {
         }
     }
 }
-
-#pragma clang diagnostic pop
