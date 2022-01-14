@@ -30,6 +30,8 @@ struct dadosManager{
     pEspecialista listaEspecialistas;
     int *nUtentesEspecialidade;
     int stop;
+    pthread_mutex_t *mutexListaUtentes;
+    pthread_mutex_t *mutexListaMedicos;
 };
 
 struct dadosHeartbeat{
@@ -49,6 +51,8 @@ typedef struct {
     int *nUtentesEspecialidade;
     pEspecialista listaEspecialistas;
     pthread_mutex_t *mutexPrints;
+    pthread_mutex_t *mutexListaUtentes;
+    pthread_mutex_t *mutexListaMedicos;
 } DADOS_REG_UTENTES;
 
 typedef struct{
@@ -58,7 +62,7 @@ typedef struct{
     int nMaxMedicos;
     pthread_mutex_t  *mutexPrints;
     pEspecialista lista;
-
+    pthread_mutex_t *mutexListaMedicos;
 } DADOS_REG_MEDICOS;
 
 

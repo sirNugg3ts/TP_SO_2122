@@ -87,21 +87,22 @@ int main(int argc, char*argv[]){
         fprintf(stdout,"Foi lhe atribuido a especialidade %s, mas esta ja se encontra cheia",u1.especialidadeAtribuida);
         exit(0);
     }
-    close(fdCliente);
+
+
     MSG msgStatus;
-    fdCliente = open(CLIENT_FIFO_FINAL,O_RDONLY );
     read(fdCliente,&msgStatus,sizeof(MSG));
     fprintf(stdout,"%s\n",msgStatus.msg);
     fflush(stdout);
     close(fdCliente);
 
-
     fprintf(stdout,"\nA espera de medico...");
     fflush(stdout);
+
 
     MSG msg;
     fdCliente = open(CLIENT_FIFO_FINAL,O_RDONLY );
     int sizeReadMassage = read(fdCliente,&msg, sizeof(MSG));
+    close(fdCliente);
     char MEDICO_FIFO_FINAL[MAX_STRING_SIZE];
     char input[MAX_STRING_SIZE];
 
@@ -111,6 +112,7 @@ int main(int argc, char*argv[]){
     printf("\nConectado ao medico\n");
     fflush(stdout);
 
+    fdCliente = open(CLIENT_FIFO_FINAL,O_RDONLY );
     do{
 
         fd_set read_fds;
@@ -135,12 +137,12 @@ int main(int argc, char*argv[]){
             if(readSize > 0){
                 fprintf(stdout,"Medico: %s",msg.msg);
             }
-            if(strcmp(msg.msg,"adeus")==0){
+            if(strcmp(msg.msg,"adeus\n")==0){
                 printf("O médico terminou a consulta !!");
 
             }
         }
-    } while (strcmp(msg.msg,"adeus")!=0 || strcmp(input,"adeus")!=0);
+    } while (strcmp(msg.msg,"adeus\n")!=0 || strcmp(input,"adeus\n")!=0);
 
     close(fdServer);
     unlink(CLIENT_FIFO_FINAL);

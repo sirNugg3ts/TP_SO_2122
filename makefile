@@ -7,7 +7,7 @@ cliente: cliente.c cliente.h
 	gcc -o cliente cliente.c
 
 medico: medico.c medico.h
-	gcc -o medico medico.c
+	gcc -o medico medico.c -pthread
 
 clean:
 	rm -f balcao cliente medico
@@ -15,3 +15,4 @@ clean:
 	rm -f /tmp/balc_fifo_medics
 	rm -f /tmp/client_fifo_*
 	rm -f /tmp/medico_fifo_*
+	rm -f /tmp/heartbeat
