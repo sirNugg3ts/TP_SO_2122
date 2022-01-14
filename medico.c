@@ -116,12 +116,16 @@ int main(int argc, char *argv[]) {
 
     char UTENTE_FIFO[MAX_STRING_SIZE];
 
-   fdEspecialista = open(MEDICO_FIFO_FINAL, O_RDONLY);
+   fdEspecialista = open(MEDICO_FIFO_FINAL, O_RDWR | O_NONBLOCK);
 
 
     MSG msg;
     int flag = 0;
     do {
+
+        struct timeval tv;
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
 
         if (flag == 0) {
             fprintf(stdout, "A espera de utentes\n");

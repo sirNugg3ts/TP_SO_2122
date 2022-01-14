@@ -112,7 +112,7 @@ int main(int argc, char*argv[]){
     printf("\nConectado ao medico\n");
     fflush(stdout);
 
-    fdCliente = open(CLIENT_FIFO_FINAL,O_RDONLY );
+    fdCliente = open(CLIENT_FIFO_FINAL,O_RDWR | O_NONBLOCK );
     do{
 
         fd_set read_fds;
