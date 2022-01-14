@@ -15,4 +15,4 @@ clean:
 	rm -f /tmp/balc_fifo_medics
 	rm -f /tmp/client_fifo_*
 	rm -f /tmp/medico_fifo_*
-	rm -f /tmp/heartbeat
+	rm -f /tmp/balcao_commands

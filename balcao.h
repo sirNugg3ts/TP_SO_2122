@@ -32,6 +32,8 @@ struct dadosManager{
     int stop;
     pthread_mutex_t *mutexListaUtentes;
     pthread_mutex_t *mutexListaMedicos;
+    pthread_cond_t *condMedico;
+    pthread_cond_t *condUtentes;
 };
 
 struct dadosHeartbeat{
@@ -53,6 +55,7 @@ typedef struct {
     pthread_mutex_t *mutexPrints;
     pthread_mutex_t *mutexListaUtentes;
     pthread_mutex_t *mutexListaMedicos;
+    pthread_cond_t *ptrCond;
 } DADOS_REG_UTENTES;
 
 typedef struct{
@@ -63,6 +66,7 @@ typedef struct{
     pthread_mutex_t  *mutexPrints;
     pEspecialista lista;
     pthread_mutex_t *mutexListaMedicos;
+    pthread_cond_t *ptrCond;
 } DADOS_REG_MEDICOS;
 
 
