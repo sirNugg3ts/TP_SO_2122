@@ -66,6 +66,7 @@ struct dadosStatus {
     int *ocupacao;
     int *timeFreq;
     int stopShowing;
+    pthread_mutex_t *mutexPrints;
 };
 
 #endif

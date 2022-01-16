@@ -291,7 +291,9 @@ void *recebeMedicos(void *Dados) {
 
 void *apresentaStatusEspera(void *Dados) {
     struct dadosStatus *dadosStatus = (struct dadosStatus *) Dados;
+
     while (dadosStatus->stopShowing) {
+        pthread_mutex_lock(dadosStatus->mutexPrints);
         printf("\n###\nStatus:\n");
         fflush(stdout);
         printf("Oftalmologia: %d\n", dadosStatus->ocupacao[0]);
@@ -301,6 +303,7 @@ void *apresentaStatusEspera(void *Dados) {
         printf("Geral: %d\n", dadosStatus->ocupacao[4]);
         printf("###\n");
         fflush(stdout);
+        pthread_mutex_unlock(dadosStatus->mutexPrints);
         sleep(*dadosStatus->timeFreq);
     }
     pthread_exit(NULL);
@@ -584,6 +587,7 @@ int main() {
             dadosStatus.ocupacao = balcao.nUtentesEspecialidade;
             dadosStatus.stopShowing = 1;
             dadosStatus.timeFreq = &timeFreq;
+            dadosStatus.mutexPrints = &mutexPrints;
 
             if (pthread_create(&status, NULL, &apresentaStatusEspera, &dadosStatus) != 0) {
                 fprintf(stderr, "\nErro ao criar thread [Status]\nA terminar...");

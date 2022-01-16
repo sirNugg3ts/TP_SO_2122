@@ -1,11 +1,3 @@
-#include "stdio.h"
-#include "string.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include "balcao.h"
-#include "utils.h"
-#include <signal.h>
-#include <pthread.h>
 #include "medico.h"
 
 char MEDICO_FIFO_FINAL[MAX_STRING_SIZE];
@@ -15,6 +7,7 @@ void sigint(int s)
     int fd = open(BALCAO_COMMANDS, O_WRONLY);
     if (fd == -1) {
         fprintf(stderr, "\nNao foi possivel avisar o balcao");
+        unlink(MEDICO_FIFO_FINAL);
         exit(EXIT_FAILURE);
     } else {
         MSG msg;
@@ -35,7 +28,8 @@ void sigint(int s)
 void inicializaEstrutura(int argc, char *argv[], pEspecialista especialista) {
     if (argc < 3) {
         fprintf(stderr, "Nao foi indicado nome ou especialidade");
-        exit(-1);
+        fflush(stderr);
+        exit(EXIT_FAILURE);
     }
 
     if (strcmp(argv[2], "oftalmologia") != 0 &&
@@ -44,7 +38,7 @@ void inicializaEstrutura(int argc, char *argv[], pEspecialista especialista) {
         strcmp(argv[2], "ortopedia") != 0 &&
         strcmp(argv[2], "geral") != 0) {
         fprintf(stderr, "A especialidade indicada nao existe\n");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     strcpy(especialista->nomeMedico, argv[1]);
@@ -57,7 +51,8 @@ void *heartbeat(void *Dados) {
     do{
         int fd = open(BALCAO_COMMANDS,O_WRONLY);
         if(fd == -1){
-            fprintf(stderr,"\nNao foi possivel avisar o balcao");
+            fprintf(stderr,"\nNao foi possivel contactar o balcao");
+            unlink(MEDICO_FIFO_FINAL);
             exit(EXIT_FAILURE);
         }else{
             MSG msg;
@@ -69,108 +64,116 @@ void *heartbeat(void *Dados) {
             int size = write(fd,&msg, sizeof(MSG));
             if (size < 0) {
                 printf("\nErro ao informar balcao \n");
+                unlink(MEDICO_FIFO_FINAL);
                 exit(EXIT_FAILURE);
             }
             close(fd);
         }
         sleep(20);
     }while(1);
-
-
-
 }
 
 int main(int argc, char *argv[]) {
     Especialista e1;
     int fdServer, fdEspecialista;
+    fd_set read_fds;
+    pthread_t threadHeartbeat;
+    int pidServer;
+    char input[MAX_STRING_SIZE];
+    MSG msgServer;
+    char UTENTE_FIFO[MAX_STRING_SIZE];
+    MSG msg;
+    int flag = 0;
 
+    sprintf(MEDICO_FIFO_FINAL, MEDICO_FIFO, getpid());
     inicializaEstrutura(argc, argv, &e1);
 
     signal(SIGINT,sigint);
-
-
-
-    sprintf(MEDICO_FIFO_FINAL, MEDICO_FIFO, getpid());
 
     //fazer pipe resposta
     if (mkfifo(MEDICO_FIFO_FINAL, 0777) == -1) {
         if (errno == EEXIST)
             fprintf(stderr, "\nFIFO ja existe");
         fprintf(stderr, "\nErro ao abrir FIFO");
-        exit(-1);
+        fflush(stderr);
+        exit(EXIT_FAILURE);
     }
 
     //verificar se o balcao esta a correr
     if (access(SERVER_FIFO_FOR_MEDICS, F_OK) != 0) {
         fprintf(stderr, "\nO balcao nao se encontra em executamento");
-        return 1;
+        fflush(stderr);
+        unlink(MEDICO_FIFO_FINAL);
+        exit(EXIT_SUCCESS);
     }
-
 
     fdServer = open(SERVER_FIFO_FOR_MEDICS, O_WRONLY);
     if (fdServer == -1) {
         fprintf(stderr, "\nErro ao abrir pipe servidor");
-        exit(-1);
+        fflush(stderr);
+        exit(EXIT_FAILURE);
     }
+
     int size = write(fdServer, &e1, sizeof(e1));
     if (size < 0) {
         printf("\nErro ao escrever a estrutura para o pipe \n");
-        exit(1);
+        fflush(stderr);
+        close(fdServer);
+        exit(EXIT_FAILURE);
     }
 
     fdEspecialista = open(MEDICO_FIFO_FINAL, O_RDONLY);
     if (fdEspecialista == -1) {
         fprintf(stderr, "\nErro ao abrir pipe servidor");
-        exit(-1);
+        fflush(stderr);
+        unlink(MEDICO_FIFO_FINAL);
+        close(fdServer);
+        exit(EXIT_FAILURE);
     }
 
     int size1 = read(fdEspecialista, &e1, sizeof(e1));
-
     if (size1 < 0) {
-        printf("\nErro ao escrever a estrutura para o pipe \n");
-        exit(1);
+        printf("\nErro ao ler a estrutura para do pipe \n");
+        fflush(stderr);
+        unlink(MEDICO_FIFO_FINAL);
+        close(fdEspecialista);
+        close(fdServer);
+        exit(EXIT_FAILURE);
     }
+
     if (strcmp(e1.nomeMedico, "SERVERFULL") == 0) {
         fprintf(stderr, "\nServidor cheio");
         fflush(stderr);
         close(fdServer);
+        close(fdEspecialista);
         unlink(MEDICO_FIFO_FINAL);
-        exit(1);
+        exit(EXIT_SUCCESS);
     }
+
     close(fdServer);
-
-
-    fd_set read_fds;
-    pthread_t threadHeartbeat;
-
-    int pidServer;
     pidServer = e1.pidServer;
 
-
     if (pthread_create(&threadHeartbeat, NULL, &heartbeat, NULL) != 0) {
-        fprintf(stderr, "\nErro ao criar thread para receber utentes\nA terminar...");
-        exit(1);
+        fprintf(stderr, "\nErro ao criar thread HeartBeat\nA terminar...");
+        fflush(stderr);
+        unlink(MEDICO_FIFO_FINAL);
+        close(fdEspecialista);
+        close(fdServer);
+        exit(EXIT_FAILURE);
     }
 
-    char input[MAX_STRING_SIZE];
-
-    MSG msgServer;
-    fprintf(stdout, "A espera de utentes\n");
-    fflush(stdout);
-
-    char UTENTE_FIFO[MAX_STRING_SIZE];
-
     fdEspecialista = open(MEDICO_FIFO_FINAL, O_RDWR | O_NONBLOCK);
+    if (fdEspecialista == -1) {
+        fprintf(stderr, "\nErro ao abrir pipe servidor");
+        fflush(stderr);
+        close(fdServer);
+        close(fdEspecialista);
+        unlink(MEDICO_FIFO_FINAL);
+        exit(EXIT_SUCCESS);
+    }
 
 
-    MSG msg;
-    int flag = 0;
     do {
-
-        struct timeval tv;
-        tv.tv_sec = 5;
-        tv.tv_usec = 0;
-
         if (flag == 0) {
             fprintf(stdout, "A espera de utentes\n");
             fflush(stdout);
@@ -186,14 +189,15 @@ int main(int argc, char *argv[]) {
         {
             if (flag) //conectado
             {
-                //TODO VERIFICAR ADEUS
-                fgets(input, 99, stdin);
+                fgets(input, MAX_STRING_SIZE-1, stdin);
                 strcpy(msg.msg, input);
+
                 //enviar texto para cliente
                 msg.sender = getpid();
                 int fdCliente = open(UTENTE_FIFO, O_WRONLY);
                 write(fdCliente, &msg, sizeof(msg));
                 close(fdCliente);
+
                 if (strcmp(input, "adeus\n") == 0) {
                     flag = 0;
                     int fd = open(BALCAO_COMMANDS, O_RDWR | O_NONBLOCK);

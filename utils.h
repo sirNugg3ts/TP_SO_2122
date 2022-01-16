@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
+#include <signal.h>
 #include <pthread.h>
 
 #define MAX_STRING_SIZE 256
