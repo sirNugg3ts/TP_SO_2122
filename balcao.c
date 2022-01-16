@@ -395,6 +395,8 @@ struct dadosStatus {
     int stopShowing;
 };
 
+void informShutdown(pUtenteContainer pContainer, pEspecialista pEspecialista);
+
 void *apresentaStatusEspera(void *Dados) {
     struct dadosStatus *dadosStatus = (struct dadosStatus *) Dados;
     while (dadosStatus->stopShowing) {
@@ -791,6 +793,7 @@ int main() {
                         pthread_cancel(threadRecebeMedicos);
                         pthread_cancel(threadRecebeUtentes);
                         pthread_cancel(status);
+                        informShutdown(listaUtentes,listaEspecialistas);
                         unlink(SERVER_FIFO);
                         unlink(SERVER_FIFO_FOR_MEDICS);
                         unlink(BALCAO_COMMANDS);
@@ -1033,12 +1036,45 @@ int main() {
 
                     if (strcmp(comando1, "encerra\n") == 0) {
 
-                        //TODO: Notificar que o balcao vai encerrar
-                        //TODO: exit gracefully
+                        kill(getpid(),SIGINT);
 
                     }
                 }
             }
         }
+    }
+}
+
+void informShutdown(pUtenteContainer pContainer, pEspecialista pEspecialista) {
+    pUtente percorre = pContainer->first;
+    Especialista *p = pEspecialista->next;
+    MSG msg;
+    while (percorre!=NULL){
+        char acess[MAX_STRING_SIZE];
+        sprintf(acess,CLIENT_FIFO,percorre->pid);
+        int fd = open(acess,O_WRONLY);
+        if(fd == -1){
+            //TODO: handle
+        }
+        strcpy(msg.msg, "SHUTDOWN");
+        msg.sender = getpid();
+        write(fd, &msg, sizeof(MSG));
+        close(fd);
+
+        percorre = percorre->next;
+    }
+    while (p!= NULL){
+        char acess[MAX_STRING_SIZE];
+        sprintf(acess,MEDICO_FIFO,p->pid);
+        int fd = open(acess,O_WRONLY);
+        if(fd == -1){
+            //TODO: handle
+        }
+        strcpy(msg.msg, "SHUTDOWN");
+        msg.sender = getpid();
+        write(fd, &msg, sizeof(MSG));
+        close(fd);
+
+        p = p->next;
     }
 }

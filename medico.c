@@ -231,6 +231,9 @@ int main(int argc, char *argv[]) {
                         write(fdCliente, &msg, sizeof(msg));
                         close(fdCliente);
                     kill(getpid(),SIGINT);
+                }else if(strcmp(msgServer.msg,"SHUTDOWN")==0 && msgServer.sender == pidServer){
+                    printf("\nServer shutding down\n");
+                    fflush(stdout);
                 }else {
                     if (flag == 0) {
                         if (sizeReadMessage > 0) {
@@ -251,6 +254,8 @@ int main(int argc, char *argv[]) {
                     }
                 }
             }
-        }while (strcmp(input, "sair\n") != 0);
-    kill(getpid(),SIGINT);
+        }while (strcmp(input, "sair\n") != 0 && !(strcmp(msgServer.msg,"SHUTDOWN")==0 && msgServer.sender == pidServer));
+    if(!(strcmp(msgServer.msg,"SHUTDOWN")==0 && msgServer.sender == pidServer))
+        kill(getpid(),SIGINT);
+    return EXIT_SUCCESS;
     }

@@ -129,6 +129,10 @@ int main(int argc, char*argv[]){
         if(strcmp(msg.msg,"DELUT")==0){
             printf("\n[SERVER]O servidor removeu-o do sistema");
             sigqueue(getpid(), SIGINT, (union sigval) NULL);
+        }else if(strcmp(msg.msg,"SHUTDOWN")==0){
+            printf("\nServer is shutting down");
+            fflush(stdout);
+            exit(EXIT_SUCCESS);
         }else{
             sprintf(MEDICO_FIFO_FINAL,MEDICO_FIFO,atoi(msg.msg));
             printf("\nConectado ao medico\n");
@@ -172,6 +176,9 @@ int main(int argc, char*argv[]){
                     int fdMedico = open(MEDICO_FIFO_FINAL,O_WRONLY );
                     write(fdMedico,&msg,sizeof(msg));
                     close(fdMedico);
+                }else if(strcmp(msg.msg,"SHUTDOWN")==0 && msg.sender == pidServer){
+                    printf("\nServer shutding down\n");
+                    fflush(stdout);
                 }else{
                     if(strcmp(msg.msg,"adeus\n")==0 || strcmp(msg.msg,"sair\n")==0){
                         printf("O médico terminou a consulta!!");
@@ -184,8 +191,12 @@ int main(int argc, char*argv[]){
             }
         }
     } while (strcmp(msg.msg,"adeus\n")!=0 && strcmp(input,"adeus\n")!=0 && strcmp(msg.msg,"sair\n")!=0 &&
-            !(strcmp(msg.msg,"DELUT")==0 && msg.sender == pidServer));
-    sigqueue(getpid(), SIGINT, (union sigval) NULL);
+            !(strcmp(msg.msg,"DELUT")==0 && msg.sender == pidServer) && !(strcmp(msg.msg,"SHUTDOWN")==0 && msg.sender == pidServer));
+
+    if(!(strcmp(msg.msg,"SHUTDOWN")==0 && msg.sender == pidServer)){
+        sigqueue(getpid(), SIGINT, (union sigval) NULL);
+    }
+
     close(fdServer);
     unlink(CLIENT_FIFO_FINAL);
 
