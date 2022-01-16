@@ -1,11 +1,6 @@
 #ifndef BALCAO
 #define BALCAO
 
-//valores constantes
-#define MAXUTENTESESPECIALIDADE 5
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include "medico.h"
 #include "cliente.h"
 
@@ -16,13 +11,12 @@ struct Balcao{
     int nClienteLigados;
     int nMedicosLigados;
 
-    int nUtentesEspecialidade[MAXUTENTESESPECIALIDADE];
+    int nUtentesEspecialidade[5];
     //oftalmologia neurologia estomatologia ortopedia geral
 };
 
 typedef struct utenteContainer {
     pUtente first;
-    pthread_mutex_t list_mutex;
 } *pUtenteContainer;
 
 struct dadosManager{
@@ -32,21 +26,20 @@ struct dadosManager{
     int stop;
     pthread_mutex_t *mutexListaUtentes;
     pthread_mutex_t *mutexListaMedicos;
-    pthread_cond_t *condMedico;
-    pthread_cond_t *condUtentes;
+    pthread_mutex_t *mutexPrints;
 };
 
 struct dadosHeartbeat{
     pEspecialista listaEspecialistas;
     int stop;
-    int fdHeartbeat;
     pUtenteContainer listaUtentes;
+    pthread_mutex_t *mutexPrints;
+    pthread_mutex_t *mutexEspecialistas;
 };
 
 typedef struct {
     int *fd_balcao_classificador;
     int *fd_classificador_balcao;
-    int fdServer;
     int stopReceiving;
     int *nUtentesLigados;
     int nMaxClientes;
@@ -60,7 +53,6 @@ typedef struct {
 } DADOS_REG_UTENTES;
 
 typedef struct{
-    int fdServer;
     int stopReceiving;
     int *nMedicosLigados;
     int nMaxMedicos;
@@ -70,6 +62,10 @@ typedef struct{
     pthread_cond_t *ptrCond;
 } DADOS_REG_MEDICOS;
 
-
+struct dadosStatus {
+    int *ocupacao;
+    int *timeFreq;
+    int stopShowing;
+};
 
 #endif

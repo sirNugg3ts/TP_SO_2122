@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
+#include <pthread.h>
 
 #define MAX_STRING_SIZE 256
 
@@ -23,8 +24,5 @@ typedef struct{
     pid_t sender;
     char msg[MAX_STRING_SIZE];
 } MSG;
-
-
-
 
 #endif
