@@ -614,7 +614,7 @@ int main() {
 
             pthread_mutex_lock(&mutexPrints);
             //input teclado
-            fprintf(stdout, "\nWrite \"Help\" for a list of commands");
+            fprintf(stdout, "\nWrite \"Help\" for a list of commands\n");
             fflush(stdout);
             pthread_mutex_unlock(&mutexPrints);
 
@@ -855,12 +855,20 @@ int main() {
                             pUtente percorre = listaUtentes->first;
                             int removed = 0;
                             while (percorre != NULL && removed == 0) {
+
                                 if (percorre->pid == atoi(comando2)) {
-                                    //notificar cliente
-                                    char clienteFIFO[MAX_STRING_SIZE];
-                                    sprintf(clienteFIFO, CLIENT_FIFO, atoi(comando2));
-                                    writeMessageToFIFO(clienteFIFO,"DELUT");
-                                    removed = 1;
+                                    if(percorre->atendido == 1){
+                                        printf("[MAIN] O utente ja se encontra atendido\n"
+                                               "Nao pode remover um utente em consulta");
+                                        fflush(stdout);
+                                        removed = 1;
+                                    }else{
+                                        //notificar cliente
+                                        char clienteFIFO[MAX_STRING_SIZE];
+                                        sprintf(clienteFIFO, CLIENT_FIFO, atoi(comando2));
+                                        writeMessageToFIFO(clienteFIFO,"DELUT");
+                                        removed = 1;
+                                    }
                                 }
                                 percorre = percorre->next;
                             }
@@ -873,12 +881,18 @@ int main() {
                             int removed = 0;
                             while (percorre != NULL && removed == 0) {
                                 if (percorre->pid == atoi(comando2)) {
-
-                                    //notificar cliente
-                                    char especialistaFiFO[MAX_STRING_SIZE];
-                                    sprintf(especialistaFiFO, MEDICO_FIFO, atoi(comando2));
-                                    writeMessageToFIFO(especialistaFiFO,"DELUT");
-                                    removed = 1;
+                                    if(percorre->ocupado == 1){
+                                        printf("[MAIN]O especialista esta em consulta\n"
+                                               "Nao pode remover um especialista em consulta");
+                                        fflush(stdout);
+                                        removed = 1;
+                                    }else{
+                                        //notificar cliente
+                                        char especialistaFiFO[MAX_STRING_SIZE];
+                                        sprintf(especialistaFiFO, MEDICO_FIFO, atoi(comando2));
+                                        writeMessageToFIFO(especialistaFiFO,"DELUT");
+                                        removed = 1;
+                                    }
                                 }
                                 percorre = percorre->next;
                             }
