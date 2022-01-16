@@ -2,8 +2,7 @@
 
 char MEDICO_FIFO_FINAL[MAX_STRING_SIZE];
 
-void sigint(int s)
-{
+void sigint(int s) {
     int fd = open(BALCAO_COMMANDS, O_WRONLY);
     if (fd == -1) {
         fprintf(stderr, "\nNao foi possivel avisar o balcao");
@@ -25,6 +24,7 @@ void sigint(int s)
     unlink(MEDICO_FIFO_FINAL);
     exit(EXIT_SUCCESS);
 }
+
 void inicializaEstrutura(int argc, char *argv[], pEspecialista especialista) {
     if (argc < 3) {
         fprintf(stderr, "Nao foi indicado nome ou especialidade");
@@ -48,20 +48,20 @@ void inicializaEstrutura(int argc, char *argv[], pEspecialista especialista) {
 
 
 void *heartbeat(void *Dados) {
-    do{
-        int fd = open(BALCAO_COMMANDS,O_WRONLY);
-        if(fd == -1){
-            fprintf(stderr,"\nNao foi possivel contactar o balcao");
+    do {
+        int fd = open(BALCAO_COMMANDS, O_WRONLY);
+        if (fd == -1) {
+            fprintf(stderr, "\nNao foi possivel contactar o balcao");
             unlink(MEDICO_FIFO_FINAL);
             exit(EXIT_FAILURE);
-        }else{
+        } else {
             MSG msg;
-            char comando[MAX_STRING_SIZE],final[MAX_STRING_SIZE];
-            strcpy(comando,"HEARTBEAT");
-            sprintf(final,comando,getpid());
-            strcpy(msg.msg,final);
+            char comando[MAX_STRING_SIZE], final[MAX_STRING_SIZE];
+            strcpy(comando, "HEARTBEAT");
+            sprintf(final, comando, getpid());
+            strcpy(msg.msg, final);
             msg.sender = getpid();
-            int size = write(fd,&msg, sizeof(MSG));
+            int size = write(fd, &msg, sizeof(MSG));
             if (size < 0) {
                 printf("\nErro ao informar balcao \n");
                 unlink(MEDICO_FIFO_FINAL);
@@ -70,7 +70,7 @@ void *heartbeat(void *Dados) {
             close(fd);
         }
         sleep(20);
-    }while(1);
+    } while (1);
 }
 
 int main(int argc, char *argv[]) {
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
     sprintf(MEDICO_FIFO_FINAL, MEDICO_FIFO, getpid());
     inicializaEstrutura(argc, argv, &e1);
 
-    signal(SIGINT,sigint);
+    signal(SIGINT, sigint);
 
     //fazer pipe resposta
     if (mkfifo(MEDICO_FIFO_FINAL, 0777) == -1) {
@@ -189,7 +189,7 @@ int main(int argc, char *argv[]) {
         {
             if (flag) //conectado
             {
-                fgets(input, MAX_STRING_SIZE-1, stdin);
+                fgets(input, MAX_STRING_SIZE - 1, stdin);
                 strcpy(msg.msg, input);
 
                 //enviar texto para cliente
@@ -205,61 +205,62 @@ int main(int argc, char *argv[]) {
                         fprintf(stderr, "\nNao foi possivel avisar o balcao");
                         exit(EXIT_FAILURE);
                     }
-                        MSG msg;
-                        char comando[MAX_STRING_SIZE], final[MAX_STRING_SIZE];
-                        strcpy(comando, "FREE %d");
-                        sprintf(final, comando, getpid());
-                        strcpy(msg.msg, final);
-                        int size = write(fd, &msg, sizeof(MSG));
-                        if (size < 0) {
-                            printf("\nErro ao informar balcao \n");
-                            exit(EXIT_FAILURE);
-                        }
-                        close(fd);
+                    MSG msg;
+                    char comando[MAX_STRING_SIZE], final[MAX_STRING_SIZE];
+                    strcpy(comando, "FREE %d");
+                    sprintf(final, comando, getpid());
+                    strcpy(msg.msg, final);
+                    int size = write(fd, &msg, sizeof(MSG));
+                    if (size < 0) {
+                        printf("\nErro ao informar balcao \n");
+                        exit(EXIT_FAILURE);
                     }
-                } else {
-                    fgets(input, 99, stdin);
-                    if (strcmp(input, "encerra\n") == 0) {
-                        kill(getpid(),SIGINT);
-                    }
+                    close(fd);
+                }
+            } else {
+                fgets(input, 99, stdin);
+                if (strcmp(input, "encerra\n") == 0) {
+                    kill(getpid(), SIGINT);
                 }
             }
-            if (FD_ISSET(fdEspecialista, &read_fds))//recebeu uma mensagem
-            {
-                int sizeReadMessage = read(fdEspecialista, &msgServer, sizeof(MSG));
-                if(strcmp(msgServer.msg,"DELUT") == 0 && msgServer.sender == pidServer){
-                    printf("\n[SERVER]O servidor removeu-o do sistema");
-                    strcpy(msg.msg,"adeus\n");
-                    msg.sender = getpid();
-                        int fdCliente = open(UTENTE_FIFO, O_WRONLY);
-                        write(fdCliente, &msg, sizeof(msg));
-                        close(fdCliente);
-                    kill(getpid(),SIGINT);
-                }else if(strcmp(msgServer.msg,"SHUTDOWN")==0 && msgServer.sender == pidServer){
-                    printf("\nServer shutding down\n");
+        }
+        if (FD_ISSET(fdEspecialista, &read_fds))//recebeu uma mensagem
+        {
+            int sizeReadMessage = read(fdEspecialista, &msgServer, sizeof(MSG));
+            if (strcmp(msgServer.msg, "DELUT") == 0 && msgServer.sender == pidServer) {
+                printf("\n[SERVER]O servidor removeu-o do sistema");
+                strcpy(msg.msg, "adeus\n");
+                msg.sender = getpid();
+                int fdCliente = open(UTENTE_FIFO, O_WRONLY);
+                write(fdCliente, &msg, sizeof(msg));
+                close(fdCliente);
+                kill(getpid(), SIGINT);
+            } else if (strcmp(msgServer.msg, "SHUTDOWN") == 0 && msgServer.sender == pidServer) {
+                printf("\nServer shutding down\n");
+                fflush(stdout);
+            } else {
+                if (flag == 0) {
+                    if (sizeReadMessage > 0) {
+                        sprintf(UTENTE_FIFO, CLIENT_FIFO, atoi(msgServer.msg));
+                    }
+                    printf("\nConectado ao utente:\n");
                     fflush(stdout);
-                }else {
-                    if (flag == 0) {
-                        if (sizeReadMessage > 0) {
-                            sprintf(UTENTE_FIFO, CLIENT_FIFO, atoi(msgServer.msg));
-                        }
-                        printf("\nConectado ao utente:\n");
-                        fflush(stdout);
-                        flag = 1;
-                    }else {
-                        //recebeu texto do medico
-                        if (sizeReadMessage > 0) {
-                            fprintf(stdout, "Cliente: %s \n", msgServer.msg);
-                            if (strcmp(msgServer.msg, "adeus\n") == 0) {
-                                printf("O utente terminou a consulta !!");
-                                flag = 0;
-                            }
+                    flag = 1;
+                } else {
+                    //recebeu texto do medico
+                    if (sizeReadMessage > 0) {
+                        fprintf(stdout, "Cliente: %s \n", msgServer.msg);
+                        if (strcmp(msgServer.msg, "adeus\n") == 0) {
+                            printf("O utente terminou a consulta !!");
+                            flag = 0;
                         }
                     }
                 }
             }
-        }while (strcmp(input, "sair\n") != 0 && !(strcmp(msgServer.msg,"SHUTDOWN")==0 && msgServer.sender == pidServer));
-    if(!(strcmp(msgServer.msg,"SHUTDOWN")==0 && msgServer.sender == pidServer))
-        kill(getpid(),SIGINT);
+        }
+    } while (strcmp(input, "sair\n") != 0 &&
+             !(strcmp(msgServer.msg, "SHUTDOWN") == 0 && msgServer.sender == pidServer));
+    if (!(strcmp(msgServer.msg, "SHUTDOWN") == 0 && msgServer.sender == pidServer))
+        kill(getpid(), SIGINT);
     return EXIT_SUCCESS;
-    }
+}

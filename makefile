@@ -11,8 +11,7 @@ medico: medico.c medico.h
 
 clean:
 	rm -f balcao cliente medico
-	rm -f /tmp/balc_fifo
-	rm -f /tmp/balc_fifo_medics
+	rm -f /tmp/balc_fifo*
 	rm -f /tmp/client_fifo_*
 	rm -f /tmp/medico_fifo_*
 	rm -f /tmp/balcao_commands
