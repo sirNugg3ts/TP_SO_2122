@@ -12,7 +12,8 @@ typedef struct especialista{
     struct especialista* next;
     pid_t pidServer;
     int missedHeartbeats;
-
+    char nomeUtente[MAX_STRING_SIZE];
+    pid_t pidUtenteAtribuido;
 }Especialista, *pEspecialista;
 
 

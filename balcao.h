@@ -40,6 +40,7 @@ struct dadosHeartbeat{
     pEspecialista listaEspecialistas;
     int stop;
     int fdHeartbeat;
+    pUtenteContainer listaUtentes;
 };
 
 typedef struct {

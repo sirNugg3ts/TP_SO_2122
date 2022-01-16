@@ -12,7 +12,6 @@
 #include <sys/types.h>
 
 #define MAX_STRING_SIZE 256
-#define HEARTBEAT 20
 
 #define SERVER_FIFO "/tmp/balc_fifo"
 #define SERVER_FIFO_FOR_MEDICS "/tmp/balc_fifo_medics"
